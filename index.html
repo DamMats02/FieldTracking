@@ -210,7 +210,45 @@
         }
         #mobile-fab { display: none; }
 
-        /* ── MODAL ── */
+        /* ── MOBILE DONE BAR ── */
+        #draw-done-bar {
+            display: none;
+            position: fixed;
+            top: 16px; left: 50%;
+            transform: translateX(-50%);
+            z-index: 2000;
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: 40px;
+            padding: 6px 8px;
+            gap: 8px;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+            white-space: nowrap;
+        }
+        #draw-done-bar.visible { display: flex; }
+        #draw-hint {
+            font-family: var(--mono);
+            font-size: 11px;
+            color: var(--text-muted);
+            padding: 0 4px;
+        }
+        #draw-done-btn {
+            display: flex; align-items: center; gap: 5px;
+            padding: 7px 14px; border-radius: 30px;
+            background: var(--accent); color: #0f1410;
+            border: none; cursor: pointer;
+            font-family: var(--mono); font-size: 12px; font-weight: 600;
+        }
+        #draw-undo-btn {
+            display: flex; align-items: center; gap: 5px;
+            padding: 7px 12px; border-radius: 30px;
+            background: transparent; color: var(--text-muted);
+            border: 1px solid var(--panel-border); cursor: pointer;
+            font-family: var(--mono); font-size: 12px;
+        }
+        #draw-undo-btn:active { color: var(--text); border-color: var(--text-muted); }
+        #draw-done-btn:active { opacity: 0.85; }
         #modal-overlay {
             display: none; position: fixed; inset: 0;
             z-index: 9999; background: rgba(0,0,0,0.75);
@@ -403,6 +441,23 @@
     </div>
 </div>
 
+<!-- MOBILE DONE BUTTON (shown while drawing on mobile) -->
+<div id="draw-done-bar">
+    <button id="draw-undo-btn" onclick="drawUndo()">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M3 7L1 5l2-2"/><path d="M1 5h8a4 4 0 0 1 0 8H5"/>
+        </svg>
+        Undo
+    </button>
+    <span id="draw-hint">Tap to add points</span>
+    <button id="draw-done-btn" onclick="drawDone()">
+        Done
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="2,8 6,12 14,4"/>
+        </svg>
+    </button>
+</div>
+
 <div id="toast"></div>
 <input type="file" id="file-input" accept=".geojson,.json" style="display:none" onchange="handleImport(event)">
 
@@ -430,34 +485,6 @@ const drawControl = new L.Control.Draw({
     edit: { featureGroup: drawnItems }
 });
 map.addControl(drawControl);
-
-// ── MOBILE DRAW FIX ──────────────────────────────────────
-// Leaflet.draw treats a fast second tap as a double-tap finish,
-// which completes the shape after just 2 points on mobile.
-// Fix: patch the _onTouch handler to require a longer gap (600ms)
-// between taps before registering a finish.
-if (L.Draw.Polyline) {
-    const _orig = L.Draw.Polyline.prototype._onTouch;
-    L.Draw.Polyline.prototype._onTouch = function(e) {
-        // Block the touch-as-dblclick logic by temporarily raising
-        // the map's doubleClickZoom tolerance. We handle it ourselves.
-        const now = Date.now();
-        if (this._lastTouchTime && (now - this._lastTouchTime) < 600) {
-            // Real double-tap — let it finish the shape
-            this._lastTouchTime = 0;
-            if (_orig) return _orig.call(this, e);
-            return;
-        }
-        this._lastTouchTime = now;
-        // Add the vertex normally (simulate a click)
-        if (e.touches && e.touches.length === 1) {
-            const touch = e.touches[0];
-            const point = this._map.mouseEventToLayerPoint(touch);
-            const latlng = this._map.layerPointToLatLng(point);
-            this.addVertex(latlng);
-        }
-    };
-}
 
 let shapes = [], shapeCounter = 0, modalResolve = null;
 const isMobile = () => window.innerWidth < 600;
@@ -596,12 +623,57 @@ function renderShapeList() {
 }
 
 // ── ACTIONS ──────────────────────────────────────────────
+let _activeDrawer = null;
+
 function startDraw(type) {
-    if (isMobile()) setSheet('collapsed');
-    const touchOpts = isMobile() ? { touchTolerance: 20 } : {};
-    if (type === 'polygon')  new L.Draw.Polygon(map,  { ...touchOpts, shapeOptions: { color:'#4ade80', fillColor:'#4ade80', fillOpacity:0.2, weight:2 } }).enable();
-    if (type === 'polyline') new L.Draw.Polyline(map, { ...touchOpts, shapeOptions: { color:'#60a5fa', weight:3 } }).enable();
+    if (isMobile()) {
+        setSheet('collapsed');
+        // Disable doubleClickZoom — on mobile Leaflet converts a tap into
+        // both a click AND a dblclick (300ms timer), which makes Leaflet.draw
+        // finish the shape after the 2nd point. Disabling it stops that.
+        map.doubleClickZoom.disable();
+        showDrawBar(type);
+    }
+    const opts = { shapeOptions: type === 'polygon'
+        ? { color:'#4ade80', fillColor:'#4ade80', fillOpacity:0.2, weight:2 }
+        : { color:'#60a5fa', weight:3 }
+    };
+    _activeDrawer = type === 'polygon'
+        ? new L.Draw.Polygon(map, opts)
+        : new L.Draw.Polyline(map, opts);
+    _activeDrawer.enable();
 }
+
+function showDrawBar(type) {
+    const bar = document.getElementById('draw-done-bar');
+    const hint = document.getElementById('draw-hint');
+    hint.textContent = type === 'polygon' ? 'Tap corners · Done to finish' : 'Tap points · Done to finish';
+    bar.classList.add('visible');
+}
+
+function hideDrawBar() {
+    document.getElementById('draw-done-bar').classList.remove('visible');
+    map.doubleClickZoom.enable();
+}
+
+function drawDone() {
+    // Simulate the "finish" action Leaflet.draw exposes
+    if (_activeDrawer) {
+        try { _activeDrawer._finishShape(); } catch(e) {}
+        try { _activeDrawer.completeShape(); } catch(e) {}
+    }
+    hideDrawBar();
+}
+
+function drawUndo() {
+    if (_activeDrawer) {
+        try { _activeDrawer.deleteLastVertex(); } catch(e) {}
+    }
+}
+
+// Hide bar when drawing is cancelled or completed
+map.on(L.Draw.Event.CREATED, () => hideDrawBar());
+map.on(L.Draw.Event.DRAWSTOP,  () => hideDrawBar());
 function zoomTo(id) {
     const s = shapes.find(x=>x.id===id); if (!s) return;
     map.fitBounds(s.layer.getBounds(), { padding:[40,40] });
