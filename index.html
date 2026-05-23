@@ -431,6 +431,34 @@ const drawControl = new L.Control.Draw({
 });
 map.addControl(drawControl);
 
+// ── MOBILE DRAW FIX ──────────────────────────────────────
+// Leaflet.draw treats a fast second tap as a double-tap finish,
+// which completes the shape after just 2 points on mobile.
+// Fix: patch the _onTouch handler to require a longer gap (600ms)
+// between taps before registering a finish.
+if (L.Draw.Polyline) {
+    const _orig = L.Draw.Polyline.prototype._onTouch;
+    L.Draw.Polyline.prototype._onTouch = function(e) {
+        // Block the touch-as-dblclick logic by temporarily raising
+        // the map's doubleClickZoom tolerance. We handle it ourselves.
+        const now = Date.now();
+        if (this._lastTouchTime && (now - this._lastTouchTime) < 600) {
+            // Real double-tap — let it finish the shape
+            this._lastTouchTime = 0;
+            if (_orig) return _orig.call(this, e);
+            return;
+        }
+        this._lastTouchTime = now;
+        // Add the vertex normally (simulate a click)
+        if (e.touches && e.touches.length === 1) {
+            const touch = e.touches[0];
+            const point = this._map.mouseEventToLayerPoint(touch);
+            const latlng = this._map.layerPointToLatLng(point);
+            this.addVertex(latlng);
+        }
+    };
+}
+
 let shapes = [], shapeCounter = 0, modalResolve = null;
 const isMobile = () => window.innerWidth < 600;
 
@@ -570,8 +598,9 @@ function renderShapeList() {
 // ── ACTIONS ──────────────────────────────────────────────
 function startDraw(type) {
     if (isMobile()) setSheet('collapsed');
-    if (type === 'polygon')  new L.Draw.Polygon(map).enable();
-    if (type === 'polyline') new L.Draw.Polyline(map).enable();
+    const touchOpts = isMobile() ? { touchTolerance: 20 } : {};
+    if (type === 'polygon')  new L.Draw.Polygon(map,  { ...touchOpts, shapeOptions: { color:'#4ade80', fillColor:'#4ade80', fillOpacity:0.2, weight:2 } }).enable();
+    if (type === 'polyline') new L.Draw.Polyline(map, { ...touchOpts, shapeOptions: { color:'#60a5fa', weight:3 } }).enable();
 }
 function zoomTo(id) {
     const s = shapes.find(x=>x.id===id); if (!s) return;
