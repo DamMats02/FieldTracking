@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Field_Viewer</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f1410; --panel: #161d17; --panel-border: #2a3a2c;
+            --accent: #4ade80; --accent-dim: #22c55e; --accent-glow: rgba(74,222,128,0.15);
+            --text: #d1fae5; --text-muted: #6b7c6e; --danger: #f87171; --road: #60a5fa;
+            --mono: 'IBM Plex Mono', monospace; --sans: 'IBM Plex Sans', sans-serif;
+            --sheet-collapsed: 64px; --sheet-peek: 200px; --sheet-full: 75vh;
+        }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        html, body { height: 100%; margin: 0; padding: 0; background: var(--bg); font-family: var(--sans); color: var(--text); overflow: hidden; }
+        #map { position: absolute; inset: 0; height: 100%; width: 100%; }
+
+        /* ── PANEL ── */
+        #panel {
+            position: absolute; top: 10px; right: 10px; z-index: 1000; width: 280px;
+            background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6); display: flex; flex-direction: column;
+            max-height: calc(100vh - 20px); overflow: hidden;
+        }
+        #panel.collapsed #panel-body { display: none; }
+        #panel.collapsed { max-height: none; }
+        #panel-header {
+            padding: 12px 14px; border-bottom: 1px solid var(--panel-border);
+            display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; flex-shrink: 0;
+        }
+        #panel-header .logo { width: 26px; height: 26px; background: var(--road); border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+        #panel-header .logo svg { display: block; }
+        #panel-header .title-block { flex: 1; min-width: 0; }
+        #panel-header h1 { font-family: var(--mono); font-size: 12px; font-weight: 600; margin: 0; letter-spacing: 0.05em; color: var(--road); text-transform: uppercase; }
+        #panel-header .subtitle { font-size: 10px; color: var(--text-muted); margin: 0; font-family: var(--mono); }
+        #toggle-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 2px; display: flex; align-items: center; transition: color 0.2s; }
+        #toggle-btn:hover { color: var(--road); }
+        #toggle-icon { transition: transform 0.25s ease; }
+        #panel.collapsed #toggle-icon { transform: rotate(180deg); }
+        #panel-body { display: flex; flex-direction: column; overflow: hidden; flex: 1; min-height: 0; }
+
+        /* ── STATUS BAR ── */
+        #status-bar {
+            padding: 6px 12px; border-bottom: 1px solid var(--panel-border);
+            display: flex; align-items: center; gap: 7px; flex-shrink: 0;
+        }
+        #status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); flex-shrink: 0; transition: background 0.3s; }
+        #status-dot.ok      { background: var(--accent); }
+        #status-dot.loading { background: #fbbf24; animation: pulse 1s infinite; }
+        #status-dot.error   { background: var(--danger); }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        #status-label { font-family: var(--mono); font-size: 10px; color: var(--text-muted); flex: 1; }
+        #refresh-btn {
+            font-family: var(--mono); font-size: 10px; color: var(--road);
+            background: none; border: 1px solid rgba(96,165,250,0.3); border-radius: 4px;
+            padding: 2px 7px; cursor: pointer;
+        }
+        #refresh-btn:hover { background: rgba(96,165,250,0.1); }
+
+        /* ── SOURCE BAR ── */
+        #source-bar {
+            padding: 7px 10px; border-bottom: 1px solid var(--panel-border);
+            display: flex; gap: 6px; align-items: center; flex-shrink: 0;
+        }
+        #source-input {
+            flex: 1; padding: 5px 8px; background: var(--bg); border: 1px solid var(--panel-border);
+            border-radius: 5px; color: var(--text); font-family: var(--mono); font-size: 10px;
+            outline: none;
+        }
+        #source-input:focus { border-color: var(--road); }
+        #source-load-btn {
+            padding: 5px 10px; background: rgba(96,165,250,0.1); border: 1px solid rgba(96,165,250,0.4);
+            color: var(--road); border-radius: 5px; font-family: var(--mono); font-size: 10px;
+            cursor: pointer; white-space: nowrap;
+        }
+        #source-load-btn:hover { background: rgba(96,165,250,0.2); }
+
+        /* ── BASEMAP BAR ── */
+        #basemap-bar { padding: 7px 10px; border-bottom: 1px solid var(--panel-border); display: flex; gap: 4px; flex-shrink: 0; }
+        .bm-btn { flex: 1; padding: 5px 4px; border-radius: 5px; font-family: var(--mono); font-size: 10px; font-weight: 500; border: 1px solid var(--panel-border); background: transparent; color: var(--text-muted); cursor: pointer; text-align: center; transition: all 0.15s; -webkit-appearance: none; }
+        .bm-btn.active { background: rgba(96,165,250,0.1); border-color: rgba(96,165,250,0.4); color: var(--road); }
+        .bm-btn:hover:not(.active) { color: var(--text); border-color: #4a5a4c; }
+
+        /* ── TOOLBAR (locate + fit) ── */
+        #toolbar { padding: 7px 10px; border-bottom: 1px solid var(--panel-border); display: flex; gap: 5px; flex-shrink: 0; }
+        .btn { display: flex; align-items: center; gap: 5px; padding: 6px 10px; border-radius: 6px; font-family: var(--mono); font-size: 11px; font-weight: 500; border: 1px solid transparent; cursor: pointer; transition: all 0.15s; white-space: nowrap; -webkit-appearance: none; }
+        .btn-ghost { background: transparent; border-color: var(--panel-border); color: var(--text-muted); }
+        .btn-ghost:hover, .btn-ghost:active { border-color: var(--text-muted); color: var(--text); }
+        .btn svg { flex-shrink: 0; }
+        .btn-locate.tracking { border-color: var(--road) !important; color: var(--road) !important; background: rgba(96,165,250,0.1) !important; }
+
+        /* ── SHAPES LIST ── */
+        #shapes-section { flex: 1; overflow-y: auto; padding: 8px 10px; min-height: 0; }
+        #shapes-section::-webkit-scrollbar { width: 4px; }
+        #shapes-section::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 2px; }
+        .section-label { font-family: var(--mono); font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+        #shapes-list { display: flex; flex-direction: column; gap: 4px; }
+        .shape-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--panel-border); border-radius: 7px; cursor: pointer; transition: border-color 0.15s; }
+        .shape-item:hover, .shape-item:active { border-color: #3a4e3c; }
+        .shape-item.selected { border-color: rgba(96,165,250,0.5); background: rgba(96,165,250,0.08); }
+        .shape-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+        .shape-info { flex: 1; min-width: 0; }
+        .shape-name { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
+        .shape-meta { font-family: var(--mono); font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+        .icon-btn { width: 28px; height: 28px; border-radius: 5px; border: 1px solid transparent; background: transparent; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; padding: 0; }
+        .icon-btn:hover { border-color: rgba(96,165,250,0.4); color: var(--road); }
+        #empty-state { text-align: center; padding: 24px 10px; color: var(--text-muted); font-family: var(--mono); font-size: 11px; line-height: 1.7; }
+
+        /* ── STATS BAR ── */
+        #stats-bar { padding: 9px 10px; border-top: 1px solid var(--panel-border); display: flex; gap: 8px; flex-shrink: 0; }
+        .stat { flex: 1; text-align: center; }
+        .stat-val { font-family: var(--mono); font-size: 14px; font-weight: 600; color: var(--road); }
+        .stat-label { font-size: 10px; color: var(--text-muted); margin-top: 1px; font-family: var(--mono); }
+
+        /* ── MOBILE BOTTOM SHEET ── */
+        @media (max-width: 599px) {
+            #panel { position: fixed; top: auto; right: 0; left: 0; bottom: 0; width: 100%; border-radius: 16px 16px 0 0; max-height: var(--sheet-full); height: var(--sheet-peek); transition: height 0.35s cubic-bezier(0.4,0,0.2,1); z-index: 1000; }
+            #panel.sheet-collapsed { height: var(--sheet-collapsed) !important; }
+            #panel.sheet-open { height: var(--sheet-full); }
+            #panel.dragging { transition: none; }
+            #panel.sheet-collapsed #panel-body { opacity: 0; pointer-events: none; }
+            #panel-body { opacity: 1; transition: opacity 0.2s; }
+            #panel-header::before { content: ''; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 36px; height: 4px; background: var(--panel-border); border-radius: 2px; }
+            #panel-header { position: relative; padding-top: 20px; cursor: grab; }
+            #toggle-btn { display: none; }
+            #mobile-fab { display: flex !important; flex-direction: column; gap: 8px; position: fixed; right: 12px; bottom: calc(var(--sheet-peek) + 12px); z-index: 999; transition: bottom 0.35s cubic-bezier(0.4,0,0.2,1); }
+            .fab-btn { width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(0,0,0,0.5); transition: transform 0.15s; -webkit-appearance: none; }
+            .fab-btn:active { transform: scale(0.92); }
+            .fab-locate { background: var(--panel); color: var(--text); border: 1px solid var(--panel-border) !important; }
+            .fab-locate.tracking { background: var(--road) !important; color: #0f1410 !important; }
+            .fab-fit { background: var(--panel); color: var(--text); border: 1px solid var(--panel-border) !important; }
+            .leaflet-bottom.leaflet-left { bottom: calc(var(--sheet-peek) + 8px) !important; }
+        }
+        #mobile-fab { display: none; }
+
+        /* ── LOCATION DOT ── */
+        .loc-dot-wrapper { position: relative; width: 24px; height: 24px; }
+        .loc-pulse { position: absolute; inset: 0; border-radius: 50%; background: rgba(96,165,250,0.3); border: 1.5px solid rgba(96,165,250,0.55); animation: loc-ping 2s ease-out infinite; }
+        .loc-core { position: absolute; width: 14px; height: 14px; top: 5px; left: 5px; border-radius: 50%; background: #60a5fa; border: 2.5px solid #fff; box-shadow: 0 0 0 1px rgba(96,165,250,0.5), 0 2px 8px rgba(0,0,0,0.6); }
+        @keyframes loc-ping { 0%{transform:scale(1);opacity:.8} 70%{transform:scale(2.8);opacity:0} 100%{transform:scale(2.8);opacity:0} }
+
+        /* ── TOAST ── */
+        #toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(60px); background: var(--panel); border: 1px solid rgba(96,165,250,0.4); color: var(--road); font-family: var(--mono); font-size: 12px; padding: 8px 16px; border-radius: 20px; z-index: 9998; transition: transform 0.3s ease; pointer-events: none; white-space: nowrap; }
+        #toast.show { transform: translateX(-50%) translateY(0); }
+
+        /* ── LEAFLET ── */
+        .leaflet-control-zoom a { background-color: var(--panel) !important; color: var(--road) !important; border-color: var(--panel-border) !important; width: 32px !important; height: 32px !important; line-height: 32px !important; }
+        .leaflet-control-zoom a:hover { background-color: rgba(96,165,250,0.1) !important; }
+        .leaflet-bar { border: 1px solid var(--panel-border) !important; box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important; }
+        .leaflet-control-scale-line { background: rgba(22,29,23,0.85) !important; border-color: rgba(96,165,250,0.4) !important; color: var(--text) !important; font-family: var(--mono) !important; font-size: 10px !important; }
+
+        /* read-only badge on popup */
+        .leaflet-popup-content-wrapper { background: var(--panel); border: 1px solid var(--panel-border); color: var(--text); border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5); }
+        .leaflet-popup-tip { background: var(--panel); }
+        .popup-name { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--road); }
+        .popup-meta { font-family: var(--mono); font-size: 11px; color: var(--text-muted); margin-top: 3px; }
+    </style>
+</head>
+<body>
+<div id="map"></div>
+
+<!-- MOBILE FABs -->
+<div id="mobile-fab">
+    <button class="fab-btn fab-locate" id="fab-locate" onclick="toggleTracking()" title="My location">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+            <circle cx="10" cy="10" r="4"/>
+            <line x1="10" y1="1" x2="10" y2="5"/><line x1="10" y1="15" x2="10" y2="19"/>
+            <line x1="1" y1="10" x2="5" y2="10"/><line x1="15" y1="10" x2="19" y2="10"/>
+        </svg>
+    </button>
+    <button class="fab-btn fab-fit" onclick="fitAll()" title="Fit all shapes">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8">
+            <rect x="3" y="3" width="14" height="14" rx="2"/>
+            <line x1="7" y1="10" x2="13" y2="10"/><line x1="10" y1="7" x2="10" y2="13"/>
+        </svg>
+    </button>
+</div>
+
+<!-- PANEL -->
+<div id="panel">
+    <div id="panel-header" onclick="togglePanel()">
+        <div class="logo">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+                <path d="M8 1L14 5V11L8 15L2 11V5L8 1Z" stroke="#0f1410" stroke-width="1.5" fill="none"/>
+                <circle cx="8" cy="8" r="2" fill="#0f1410"/>
+            </svg>
+        </div>
+        <div class="title-block">
+            <h1>Field Viewer</h1>
+            <p class="subtitle">Read-only map view</p>
+        </div>
+        <button id="toggle-btn" onclick="event.stopPropagation();togglePanel()">
+            <svg id="toggle-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="2,9 7,4 12,9"/></svg>
+        </button>
+    </div>
+
+    <div id="panel-body">
+        <!-- STATUS -->
+        <div id="status-bar">
+            <div id="status-dot"></div>
+            <span id="status-label">Enter a source to load</span>
+            <button id="refresh-btn" onclick="loadShapes()">↺ Refresh</button>
+        </div>
+
+        <!-- SOURCE -->
+        <div id="source-bar">
+            <input type="text" id="source-input" placeholder="user/repo  or  https://…/file.geojson" autocomplete="off" />
+            <button id="source-load-btn" onclick="loadShapes()">Load</button>
+        </div>
+
+        <!-- BASEMAP -->
+        <div id="basemap-bar">
+            <button class="bm-btn active" onclick="setBasemap('satellite',this)">Satellite</button>
+            <button class="bm-btn" onclick="setBasemap('osm',this)">Street</button>
+            <button class="bm-btn" onclick="setBasemap('terrain',this)">Terrain</button>
+        </div>
+
+        <!-- LOCATE + FIT -->
+        <div id="toolbar">
+            <button class="btn btn-ghost btn-locate" id="btn-locate" onclick="toggleTracking()">
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="6" cy="6" r="2.5"/><line x1="6" y1="1" x2="6" y2="3"/><line x1="6" y1="9" x2="6" y2="11"/><line x1="1" y1="6" x2="3" y2="6"/><line x1="9" y1="6" x2="11" y2="6"/></svg>
+                Locate me
+            </button>
+            <button class="btn btn-ghost" onclick="fitAll()">
+                <svg width="11" height="11" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="1" width="10" height="10" rx="1"/><line x1="4" y1="6" x2="8" y2="6"/><line x1="6" y1="4" x2="6" y2="8"/></svg>
+                Fit all
+            </button>
+        </div>
+
+        <!-- LAYER LIST -->
+        <div id="shapes-section">
+            <div class="section-label">Layers</div>
+            <div id="shapes-list">
+                <div id="empty-state">No shapes loaded.<br>Enter a source above<br>and press Load.</div>
+            </div>
+        </div>
+
+        <!-- STATS -->
+        <div id="stats-bar">
+            <div class="stat"><div class="stat-val" id="stat-fields">0</div><div class="stat-label">Fields</div></div>
+            <div class="stat"><div class="stat-val" id="stat-roads">0</div><div class="stat-label">Roads</div></div>
+            <div class="stat"><div class="stat-val" id="stat-area">0 ha</div><div class="stat-label">Total Area</div></div>
+        </div>
+    </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ═══════════════════════════════════════════
+// MAP
+// ═══════════════════════════════════════════
+const basemaps = {
+    satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution:'Tiles &copy; Esri', maxZoom:19 }),
+    osm:       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'&copy; OpenStreetMap contributors', maxZoom:19 }),
+    terrain:   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { attribution:'Tiles &copy; Esri', maxZoom:19 })
+};
+const map = L.map('map', { zoomControl:true }).setView([40.2934, 23.5428], 13);
+basemaps.satellite.addTo(map);
+L.control.scale({ imperial:false, metric:true, position:'bottomleft' }).addTo(map);
+
+let currentBasemap = 'satellite';
+function setBasemap(name, btn) {
+    if (name===currentBasemap) return;
+    map.removeLayer(basemaps[currentBasemap]); basemaps[name].addTo(map); shapesLayer.bringToFront();
+    currentBasemap = name;
+    document.querySelectorAll('.bm-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
+}
+
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+const isMobile = () => window.innerWidth < 600;
+let shapes = [];
+const shapesLayer = L.featureGroup().addTo(map);
+
+// ═══════════════════════════════════════════
+// PANEL / SHEET
+// ═══════════════════════════════════════════
+const panel = document.getElementById('panel');
+let sheetState = 'peek';
+
+function togglePanel() {
+    if (isMobile()) cycleSheet(); else panel.classList.toggle('collapsed');
+}
+function cycleSheet() {
+    if (sheetState==='collapsed') setSheet('peek');
+    else if (sheetState==='peek') setSheet('open');
+    else setSheet('collapsed');
+}
+function setSheet(state) {
+    sheetState = state;
+    panel.classList.remove('sheet-collapsed','sheet-open');
+    if (state==='collapsed') panel.classList.add('sheet-collapsed');
+    if (state==='open')      panel.classList.add('sheet-open');
+    updateFabPosition();
+}
+function updateFabPosition() {
+    const fab = document.getElementById('mobile-fab'); if (!fab||!isMobile()) return;
+    const h = {collapsed:64,peek:200,open:window.innerHeight*0.75};
+    fab.style.bottom = (h[sheetState]+12)+'px';
+}
+let dragStartY=0,dragStartH=0,isDragging=false;
+document.getElementById('panel-header').addEventListener('touchstart',e=>{
+    if(!isMobile())return; dragStartY=e.touches[0].clientY; dragStartH=panel.getBoundingClientRect().height; isDragging=true; panel.classList.add('dragging');
+},{passive:true});
+window.addEventListener('touchmove',e=>{
+    if(!isDragging||!isMobile())return;
+    const newH=Math.min(Math.max(dragStartH+dragStartY-e.touches[0].clientY,64),window.innerHeight*0.85);
+    panel.style.height=newH+'px'; const fab=document.getElementById('mobile-fab'); if(fab) fab.style.bottom=(newH+12)+'px';
+},{passive:true});
+window.addEventListener('touchend',()=>{
+    if(!isDragging||!isMobile())return; isDragging=false; panel.classList.remove('dragging'); panel.style.height='';
+    const h=panel.getBoundingClientRect().height;
+    if(h<100)setSheet('collapsed'); else if(h<window.innerHeight*0.75*0.6)setSheet('peek'); else setSheet('open');
+});
+
+// ═══════════════════════════════════════════
+// LOAD SHAPES
+// ═══════════════════════════════════════════
+function resolveUrl(raw) {
+    raw = raw.trim();
+    if (!raw) return null;
+    // Full URL — use as-is
+    if (raw.startsWith('http')) return raw;
+    // user/repo shorthand → GitHub raw URL for shapes.geojson
+    if (/^[\w.-]+\/[\w.-]+$/.test(raw)) {
+        const [user, repo] = raw.split('/');
+        return `https://raw.githubusercontent.com/${user}/${repo}/main/shapes.geojson`;
+    }
+    return null;
+}
+
+async function loadShapes() {
+    const raw = document.getElementById('source-input').value;
+    const url = resolveUrl(raw);
+    if (!url) { showToast('⚠ Enter  user/repo  or a full URL'); return; }
+
+    setStatus('loading', 'Loading…');
+    try {
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const gj = await res.json();
+        ingestGeoJSON(gj, raw);
+        localStorage.setItem('viewer_source', raw);
+        if (isMobile()) setSheet('peek');
+    } catch(e) {
+        setStatus('error', 'Failed to load');
+        showToast(`⚠ ${e.message}`);
+    }
+}
+
+function ingestGeoJSON(gj, sourceLabel) {
+    shapesLayer.clearLayers(); shapes = [];
+    const features = gj.type==='FeatureCollection' ? gj.features : [gj];
+    features.forEach((f,i) => {
+        const type  = f.geometry?.type==='Polygon' ? 'polygon' : 'polyline';
+        const name  = f.properties?.name || (type==='polygon'?`Field ${i+1}`:`Road ${i+1}`);
+        const color = type==='polygon' ? '#4ade80' : '#60a5fa';
+        const layer = L.geoJSON(f, {
+            style: { color, fillColor:type==='polygon'?color:undefined, fillOpacity:type==='polygon'?0.2:undefined, weight:type==='polygon'?2:3 }
+        });
+        // Popup on click
+        layer.bindPopup(`<div class="popup-name">${escHtml(name)}</div><div class="popup-meta">${type==='polygon'?'Field · '+getAreaStr(layer):'Road · '+getLengthStr(layer)}</div>`);
+        layer.addTo(shapesLayer);
+        shapes.push({ id:i, name, type, color, layer });
+    });
+    renderShapeList();
+    updateStats();
+    if (shapes.length) map.fitBounds(shapesLayer.getBounds(), { padding:[30,30] });
+    const label = sourceLabel.length > 30 ? sourceLabel.slice(0,28)+'…' : sourceLabel;
+    setStatus('ok', `${shapes.length} shape${shapes.length!==1?'s':''} · ${label}`);
+    showToast(`✓ Loaded ${shapes.length} shape(s)`);
+}
+
+function setStatus(state, label) {
+    const dot = document.getElementById('status-dot');
+    dot.className = state==='ok'?'ok':state==='loading'?'loading':state==='error'?'error':'';
+    document.getElementById('status-label').textContent = label;
+}
+
+// ═══════════════════════════════════════════
+// SHAPE LIST
+// ═══════════════════════════════════════════
+function renderShapeList() {
+    const list = document.getElementById('shapes-list');
+    if (!shapes.length) {
+        list.innerHTML='<div id="empty-state" style="text-align:center;padding:24px 10px;color:var(--text-muted);font-family:var(--mono);font-size:11px;line-height:1.7">No shapes loaded.<br>Enter a source above<br>and press Load.</div>';
+        return;
+    }
+    list.innerHTML = shapes.map(s=>{
+        const meta = s.type==='polygon' ? getAreaStr(s.layer) : getLengthStr(s.layer);
+        return `<div class="shape-item" id="item-${s.id}" onclick="zoomTo(${s.id})">
+            <div class="shape-dot" style="background:${s.color}"></div>
+            <div class="shape-info">
+                <div class="shape-name">${escHtml(s.name)}</div>
+                <div class="shape-meta">${s.type==='polygon'?'Field':'Road'} · ${meta}</div>
+            </div>
+            <button class="icon-btn" onclick="event.stopPropagation();zoomTo(${s.id})" title="Zoom to">
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="5" cy="5" r="3.5"/><line x1="7.5" y1="7.5" x2="11" y2="11"/></svg>
+            </button>
+        </div>`;
+    }).join('');
+}
+
+function zoomTo(id) {
+    const s = shapes.find(x=>x.id===id); if (!s) return;
+    map.fitBounds(s.layer.getBounds(), { padding:[40,40] });
+    document.querySelectorAll('.shape-item').forEach(el=>el.classList.remove('selected'));
+    document.getElementById(`item-${id}`)?.classList.add('selected');
+    s.layer.openPopup && s.layer.getLayers && s.layer.getLayers()[0]?.openPopup();
+    if (isMobile()) setSheet('peek');
+}
+
+function fitAll() {
+    if (shapes.length) map.fitBounds(shapesLayer.getBounds(), { padding:[30,30] });
+    else showToast('No shapes loaded');
+}
+
+// ═══════════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════════
+function updateStats() {
+    const fields=shapes.filter(s=>s.type==='polygon'), roads=shapes.filter(s=>s.type==='polyline');
+    let area=0; fields.forEach(s=>{area+=getAreaM2(s.layer);});
+    document.getElementById('stat-fields').textContent=fields.length;
+    document.getElementById('stat-roads').textContent=roads.length;
+    document.getElementById('stat-area').textContent=formatArea(area);
+}
+function getAreaM2(layer) {
+    try {
+        let total=0;
+        layer.eachLayer?.(l=>{ try{total+=Math.abs(sphericalPolygonArea(l.getLatLngs()[0]));}catch{} });
+        return total||Math.abs(sphericalPolygonArea(layer.getLatLngs?.()[0]||[]));
+    } catch{return 0;}
+}
+function sphericalPolygonArea(ll) {
+    if(!ll||!ll.length)return 0;
+    const R=6371000,r=d=>d*Math.PI/180;let a=0,n=ll.length;
+    for(let i=0;i<n;i++){const j=(i+1)%n;a+=r(ll[j].lng-ll[i].lng)*(2+Math.sin(r(ll[i].lat))+Math.sin(r(ll[j].lat)));}
+    return Math.abs(a*R*R/2);
+}
+function formatArea(m2){return m2<10000?`${Math.round(m2)} m²`:`${(m2/10000).toFixed(1)} ha`;}
+function getAreaStr(layer){
+    try{
+        let total=0;
+        layer.eachLayer?.(l=>{try{total+=Math.abs(sphericalPolygonArea(l.getLatLngs()[0]));}catch{}});
+        return formatArea(total||Math.abs(sphericalPolygonArea(layer.getLatLngs?.()[0]||[])));
+    }catch{return'—';}
+}
+function getLengthStr(layer){
+    try{
+        let len=0;
+        const processLL=ll=>{for(let i=0;i<ll.length-1;i++)len+=ll[i].distanceTo(ll[i+1]);};
+        layer.eachLayer?.(l=>{try{processLL(l.getLatLngs());}catch{}});
+        if(!len){const ll=layer.getLatLngs?.();if(ll)processLL(ll);}
+        return len>=1000?`${(len/1000).toFixed(2)} km`:`${Math.round(len)} m`;
+    }catch{return'—';}
+}
+
+// ═══════════════════════════════════════════
+// LOCATION
+// ═══════════════════════════════════════════
+let tracking=false,locationMarker=null,accuracyCircle=null,watchId=null,firstFix=true;
+function toggleTracking(){if(tracking)stopTracking();else startTracking();}
+function startTracking(){
+    if(!navigator.geolocation){showToast('⚠ Geolocation not supported');return;}
+    tracking=true;firstFix=true;setTrackingUI(true);
+    if(isMobile())setSheet('collapsed');
+    showToast('Locating…');
+    watchId=navigator.geolocation.watchPosition(onLocationUpdate,onLocationError,{enableHighAccuracy:true,maximumAge:3000,timeout:20000});
+}
+function stopTracking(){
+    tracking=false;
+    if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null;}
+    if(locationMarker){map.removeLayer(locationMarker);locationMarker=null;}
+    if(accuracyCircle){map.removeLayer(accuracyCircle);accuracyCircle=null;}
+    setTrackingUI(false);showToast('Tracking stopped');
+}
+function setTrackingUI(on){
+    document.getElementById('fab-locate')?.classList.toggle('tracking',on);
+    document.getElementById('btn-locate')?.classList.toggle('tracking',on);
+}
+function onLocationUpdate(pos){
+    const{latitude:lat,longitude:lng,accuracy}=pos.coords,latlng=L.latLng(lat,lng);
+    if(!locationMarker){
+        const icon=L.divIcon({className:'',html:'<div class="loc-dot-wrapper"><div class="loc-pulse"></div><div class="loc-core"></div></div>',iconSize:[24,24],iconAnchor:[12,12]});
+        locationMarker=L.marker(latlng,{icon,zIndexOffset:900,interactive:false,keyboard:false}).addTo(map);
+    }else{locationMarker.setLatLng(latlng);}
+    if(!accuracyCircle){
+        accuracyCircle=L.circle(latlng,{radius:accuracy,interactive:false,stroke:true,color:'#60a5fa',weight:1,opacity:0.5,fill:true,fillColor:'#60a5fa',fillOpacity:0.07}).addTo(map);
+        accuracyCircle.bringToBack();
+    }else{accuracyCircle.setLatLng(latlng);accuracyCircle.setRadius(accuracy);}
+    if(firstFix){map.setView(latlng,Math.max(map.getZoom(),17));firstFix=false;showToast(`✓ Located · ±${accuracy<1000?Math.round(accuracy)+' m':(accuracy/1000).toFixed(1)+' km'}`);}
+}
+function onLocationError(err){
+    if(err.code===3){showToast('⚠ GPS signal weak, retrying…');return;}
+    stopTracking();showToast(err.code===1?'⚠ Location permission denied':'⚠ Position unavailable');
+}
+
+// ═══════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function showToast(msg){
+    const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');
+    clearTimeout(t._timer);t._timer=setTimeout(()=>t.classList.remove('show'),2800);
+}
+window.addEventListener('resize',()=>{
+    if(isMobile())updateFabPosition();
+    else{panel.classList.remove('sheet-collapsed','sheet-open');panel.style.height='';}
+});
+
+// ═══════════════════════════════════════════
+// INIT — auto-load last source
+// ═══════════════════════════════════════════
+const savedSource = localStorage.getItem('viewer_source');
+if (savedSource) {
+    document.getElementById('source-input').value = savedSource;
+    loadShapes();
+}
+if (isMobile()) setSheet('peek');
+</script>
+</body>
+</html>
