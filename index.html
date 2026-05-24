@@ -369,9 +369,10 @@ const isMobile = () => window.innerWidth < 600;
 // ═══════════════════════════════════════════
 // GITHUB SYNC
 // ═══════════════════════════════════════════
-const GH_FILE = 'shapes.geojson'; // file stored in the repo root
-let ghConfig = null; // { user, repo, token }
-let ghFileSha = null; // needed for updates
+const GH_INDEX   = 'shapes.geojson'; // declared below in sync section, remove duplicate
+let ghConfig     = null;
+let ghIndexSha   = null;
+let ghShapeShas  = {};
 
 function loadGhConfig() {
     try {
@@ -429,72 +430,181 @@ function setSyncStatus(state, label) {
     lbl.textContent = label;
 }
 
-// Build the GitHub API URL for the data file
-function ghApiUrl() {
-    return `https://api.github.com/repos/${ghConfig.user}/${ghConfig.repo}/contents/${GH_FILE}`;
+// ═══════════════════════════════════════════
+// GITHUB SYNC — per-shape files + index
+//
+// Repo layout:
+//   shapes.geojson          ← full index (viewer reads this)
+//   shapes/slug.geojson     ← one file per shape
+// ═══════════════════════════════════════════
+const GH_DIR = 'shapes';
+
+// slug: stable filename key derived from shape id, safe for GitHub paths
+function shapeSlug(shape) {
+    return `${shape.type === 'polygon' ? 'field' : 'road'}-${shape.id}`;
 }
 
+function ghFileUrl(path) {
+    return `https://api.github.com/repos/${ghConfig.user}/${ghConfig.repo}/contents/${path}`;
+}
 function ghHeaders() {
-    return {
-        'Authorization': `token ${ghConfig.token}`,
-        'Accept': 'application/vnd.github.v3+json',
-        'Content-Type': 'application/json'
-    };
+    return { 'Authorization':`token ${ghConfig.token}`, 'Accept':'application/vnd.github.v3+json', 'Content-Type':'application/json' };
+}
+function b64Encode(str) { return btoa(unescape(encodeURIComponent(str))); }
+function b64Decode(str) { return decodeURIComponent(escape(atob(str.replace(/\n/g,'')))); }
+
+function loadGhConfig() {
+    try { const r = localStorage.getItem('fieldmapper_gh'); if (r) ghConfig = JSON.parse(r); } catch(e) {}
+    try { const r = localStorage.getItem('fieldmapper_gh_shas'); if (r) ghShapeShas = JSON.parse(r); } catch(e) {}
+}
+function saveGhConfig(cfg) {
+    ghConfig = cfg;
+    localStorage.setItem('fieldmapper_gh', JSON.stringify(cfg));
+}
+function saveShapeShas() {
+    localStorage.setItem('fieldmapper_gh_shas', JSON.stringify(ghShapeShas));
+}
+function clearGithubSetup() {
+    localStorage.removeItem('fieldmapper_gh');
+    localStorage.removeItem('fieldmapper_gh_shas');
+    ghConfig = null; ghIndexSha = null; ghShapeShas = {};
+    setSyncStatus('idle', 'Not connected to GitHub');
+    document.getElementById('github-modal').classList.remove('open');
+    showToast('GitHub disconnected');
+}
+function openGithubSetup() {
+    if (ghConfig) {
+        document.getElementById('gh-user').value  = ghConfig.user;
+        document.getElementById('gh-repo').value  = ghConfig.repo;
+        document.getElementById('gh-token').value = ghConfig.token;
+        document.getElementById('gh-clear-btn').style.display = '';
+    } else {
+        document.getElementById('gh-user').value  = '';
+        document.getElementById('gh-repo').value  = '';
+        document.getElementById('gh-token').value = '';
+        document.getElementById('gh-clear-btn').style.display = 'none';
+    }
+    document.getElementById('github-modal').classList.add('open');
+}
+async function closeGithubSetup(save) {
+    if (!save) { document.getElementById('github-modal').classList.remove('open'); return; }
+    const user  = document.getElementById('gh-user').value.trim();
+    const repo  = document.getElementById('gh-repo').value.trim();
+    const token = document.getElementById('gh-token').value.trim();
+    if (!user || !repo || !token) { showToast('⚠ Fill in all fields'); return; }
+    document.getElementById('github-modal').classList.remove('open');
+    saveGhConfig({ user, repo, token });
+    setSyncStatus('syncing', 'Connecting…');
+    await syncFromGitHub();
+}
+function setSyncStatus(state, label) {
+    const dot  = document.getElementById('sync-dot');
+    const lbl  = document.getElementById('sync-label');
+    const setup = document.getElementById('sync-setup-btn');
+    dot.className = '';
+    if (state==='ok')      { dot.classList.add('ok');      setup.textContent='Edit'; }
+    else if (state==='syncing') { dot.classList.add('syncing'); setup.textContent='Edit'; }
+    else if (state==='error')   { dot.classList.add('error');   setup.textContent='Edit'; }
+    else { setup.textContent='Setup'; }
+    lbl.textContent = label;
 }
 
-// Load shapes from GitHub, replace local state
+// ── GET a file (returns {content, sha} or null if 404) ──
+async function ghGet(path) {
+    const res = await fetch(ghFileUrl(path), { headers: ghHeaders() });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`GitHub ${res.status} on ${path}`);
+    const data = await res.json();
+    return { content: b64Decode(data.content), sha: data.sha };
+}
+
+// ── PUT a file (create or update) ──
+async function ghPut(path, content, sha, message) {
+    const body = { message, content: b64Encode(content), ...(sha ? { sha } : {}) };
+    const res = await fetch(ghFileUrl(path), { method:'PUT', headers: ghHeaders(), body: JSON.stringify(body) });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.message || res.status); }
+    const data = await res.json();
+    return data.content.sha;
+}
+
+// ── DELETE a file ──
+async function ghDelete(path, sha, message) {
+    if (!sha) return; // file never existed on GitHub
+    const body = { message, sha };
+    const res = await fetch(ghFileUrl(path), { method:'DELETE', headers: ghHeaders(), body: JSON.stringify(body) });
+    if (!res.ok && res.status !== 404) { const e = await res.json(); throw new Error(e.message || res.status); }
+}
+
+// ── Load from GitHub on startup ──
 async function syncFromGitHub() {
     if (!ghConfig) return;
     setSyncStatus('syncing', 'Loading from GitHub…');
     try {
-        const res = await fetch(ghApiUrl(), { headers: ghHeaders() });
-        if (res.status === 404) {
-            // File doesn't exist yet — that's fine, start fresh
-            ghFileSha = null;
+        const result = await ghGet(GH_INDEX);
+        if (!result) {
+            ghIndexSha = null;
             setSyncStatus('ok', `Synced · ${ghConfig.user}/${ghConfig.repo}`);
             showToast('✓ Connected — no data yet');
             return;
         }
-        if (!res.ok) throw new Error(`GitHub API ${res.status}`);
-        const data = await res.json();
-        ghFileSha = data.sha;
-        const decoded = atob(data.content.replace(/\n/g,''));
-        const gj = JSON.parse(decoded);
-        // Clear map and reload
-        drawnItems.clearLayers();
-        shapes = []; shapeCounter = 0;
+        ghIndexSha = result.sha;
+        const gj = JSON.parse(result.content);
+        drawnItems.clearLayers(); shapes = []; shapeCounter = 0; ghShapeShas = {};
+
+        // Load individual shas from the shapes/ folder listing
+        const dirRes = await fetch(ghFileUrl(GH_DIR), { headers: ghHeaders() });
+        if (dirRes.ok) {
+            const files = await dirRes.json();
+            if (Array.isArray(files)) {
+                files.forEach(f => {
+                    const slug = f.name.replace('.geojson','');
+                    ghShapeShas[slug] = f.sha;
+                });
+                saveShapeShas();
+            }
+        }
+
         ingestGeoJSON(gj);
         setSyncStatus('ok', `Synced · ${ghConfig.user}/${ghConfig.repo}`);
         showToast(`✓ Loaded ${shapes.length} shape(s) from GitHub`);
     } catch(e) {
         setSyncStatus('error', 'Sync failed');
-        showToast(`⚠ GitHub error: ${e.message}`);
+        showToast(`⚠ GitHub: ${e.message}`);
     }
 }
 
-// Push current shapes to GitHub
-async function pushToGitHub() {
+// ── Push everything: update/create individual file + regenerate index ──
+async function pushToGitHub(changedShapes, deletedSlugs) {
     if (!ghConfig) return;
     setSyncStatus('syncing', 'Saving to GitHub…');
     try {
-        const fc = buildFeatureCollection();
-        const content = btoa(unescape(encodeURIComponent(JSON.stringify(fc, null, 2))));
-        const body = {
-            message: `Update shapes ${new Date().toISOString().slice(0,16)}`,
-            content,
-            ...(ghFileSha ? { sha: ghFileSha } : {})
-        };
-        const res = await fetch(ghApiUrl(), {
-            method: 'PUT',
-            headers: ghHeaders(),
-            body: JSON.stringify(body)
-        });
-        if (!res.ok) {
-            const err = await res.json();
-            throw new Error(err.message || res.status);
+        const ts = new Date().toISOString().slice(0,16);
+
+        // 1. Write/update individual shape files
+        for (const s of (changedShapes || shapes)) {
+            const slug = shapeSlug(s);
+            const path = `${GH_DIR}/${slug}.geojson`;
+            const gj   = s.layer.toGeoJSON();
+            gj.properties = { name: s.name, type: s.type };
+            const content = JSON.stringify(gj, null, 2);
+            const sha = ghShapeShas[slug] || null;
+            const newSha = await ghPut(path, content, sha, `${sha?'Update':'Add'} ${s.name} · ${ts}`);
+            ghShapeShas[slug] = newSha;
         }
-        const data = await res.json();
-        ghFileSha = data.content.sha;
+
+        // 2. Delete removed shape files
+        for (const slug of (deletedSlugs || [])) {
+            const path = `${GH_DIR}/${slug}.geojson`;
+            await ghDelete(path, ghShapeShas[slug], `Remove ${slug} · ${ts}`);
+            delete ghShapeShas[slug];
+        }
+
+        saveShapeShas();
+
+        // 3. Regenerate the index (shapes.geojson)
+        const fc = buildFeatureCollection();
+        ghIndexSha = await ghPut(GH_INDEX, JSON.stringify(fc, null, 2), ghIndexSha, `Sync index · ${ts}`);
+
         setSyncStatus('ok', `Synced · ${ghConfig.user}/${ghConfig.repo}`);
     } catch(e) {
         setSyncStatus('error', 'Sync failed — saved locally');
@@ -507,7 +617,7 @@ function buildFeatureCollection() {
         type: 'FeatureCollection',
         features: shapes.map(s => {
             const gj = s.layer.toGeoJSON();
-            gj.properties = { name:s.name, type:s.type };
+            gj.properties = { name: s.name, type: s.type };
             return gj;
         })
     };
@@ -584,19 +694,27 @@ map.on(L.Draw.Event.CREATED, async function(e) {
     const color = isField ? '#4ade80' : '#60a5fa';
     layer.setStyle && layer.setStyle({ color, fillColor:isField?color:undefined, fillOpacity:isField?0.2:undefined, weight:isField?2:3 });
     drawnItems.addLayer(layer);
-    shapes.push({ id, name, type, layer, color });
+    const newShape = { id, name, type, layer, color };
+    shapes.push(newShape);
     renderShapeList(); updateStats();
     saveToStorage();
-    await pushToGitHub();
+    await pushToGitHub([newShape], []);
     showToast(`✓ "${name}" saved`);
     if (isMobile() && sheetState !== 'open') setSheet('peek');
 });
 map.on(L.Draw.Event.DELETED, async function(e) {
-    e.layers.eachLayer(l => { shapes = shapes.filter(s=>s.layer!==l); });
-    renderShapeList(); updateStats(); saveToStorage(); await pushToGitHub();
+    const deletedSlugs = [];
+    e.layers.eachLayer(l => {
+        const s = shapes.find(x=>x.layer===l);
+        if (s) deletedSlugs.push(shapeSlug(s));
+        shapes = shapes.filter(x=>x.layer!==l);
+    });
+    renderShapeList(); updateStats(); saveToStorage();
+    await pushToGitHub([], deletedSlugs);
 });
 map.on(L.Draw.Event.EDITED, async function() {
-    updateStats(); saveToStorage(); await pushToGitHub();
+    updateStats(); saveToStorage();
+    await pushToGitHub(shapes, []); // re-push all edited shapes
 });
 
 // ═══════════════════════════════════════════
@@ -705,15 +823,19 @@ function zoomTo(id) {
 }
 async function deleteShape(id) {
     const idx = shapes.findIndex(x=>x.id===id); if (idx===-1) return;
+    const slug = shapeSlug(shapes[idx]);
     drawnItems.removeLayer(shapes[idx].layer); shapes.splice(idx,1);
-    renderShapeList(); updateStats(); saveToStorage(); await pushToGitHub();
+    renderShapeList(); updateStats(); saveToStorage();
+    await pushToGitHub([], [slug]);
     showToast('Shape deleted');
 }
 async function clearAll() {
     if (!shapes.length) return;
     if (!confirm(`Delete all ${shapes.length} shape(s)?`)) return;
+    const slugs = shapes.map(s => shapeSlug(s));
     drawnItems.clearLayers(); shapes = [];
-    renderShapeList(); updateStats(); saveToStorage(); await pushToGitHub();
+    renderShapeList(); updateStats(); saveToStorage();
+    await pushToGitHub([], slugs);
     showToast('All shapes cleared');
 }
 
@@ -789,7 +911,7 @@ function handleImport(event) {
     const file = event.target.files[0]; if (!file) return;
     const reader = new FileReader();
     reader.onload = async e => {
-        try { ingestGeoJSON(JSON.parse(e.target.result)); saveToStorage(); await pushToGitHub(); showToast('✓ Imported'); }
+        try { ingestGeoJSON(JSON.parse(e.target.result)); saveToStorage(); await pushToGitHub(shapes, []); showToast('✓ Imported'); }
         catch { showToast('⚠ Invalid GeoJSON'); }
     };
     reader.readAsText(file); event.target.value='';
