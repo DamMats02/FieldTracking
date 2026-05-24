@@ -12,90 +12,61 @@
     <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #0f1410;
-            --panel: #161d17;
-            --panel-border: #2a3a2c;
-            --accent: #4ade80;
-            --accent-dim: #22c55e;
-            --accent-glow: rgba(74,222,128,0.15);
-            --text: #d1fae5;
-            --text-muted: #6b7c6e;
-            --danger: #f87171;
-            --road: #60a5fa;
-            --mono: 'IBM Plex Mono', monospace;
-            --sans: 'IBM Plex Sans', sans-serif;
-            --sheet-collapsed: 64px;
-            --sheet-peek: 220px;
-            --sheet-full: 75vh;
+            --bg: #0f1410; --panel: #161d17; --panel-border: #2a3a2c;
+            --accent: #4ade80; --accent-dim: #22c55e; --accent-glow: rgba(74,222,128,0.15);
+            --text: #d1fae5; --text-muted: #6b7c6e; --danger: #f87171; --road: #60a5fa;
+            --mono: 'IBM Plex Mono', monospace; --sans: 'IBM Plex Sans', sans-serif;
+            --sheet-collapsed: 64px; --sheet-peek: 220px; --sheet-full: 75vh;
         }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        html, body {
-            height: 100%; margin: 0; padding: 0;
-            background: var(--bg);
-            font-family: var(--sans);
-            color: var(--text);
-            overflow: hidden;
-        }
-        #map {
-            position: absolute;
-            inset: 0;
-            height: 100%;
-            width: 100%;
-            touch-action: pan-x pan-y;
-        }
+        html, body { height: 100%; margin: 0; padding: 0; background: var(--bg); font-family: var(--sans); color: var(--text); overflow: hidden; }
+        #map { position: absolute; inset: 0; height: 100%; width: 100%; touch-action: pan-x pan-y; }
+
+        /* ── PANEL ── */
         #panel {
-            position: absolute;
-            top: 10px; right: 10px;
-            z-index: 1000;
-            width: 300px;
-            background: var(--panel);
-            border: 1px solid var(--panel-border);
-            border-radius: 10px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.6), 0 0 0 1px rgba(74,222,128,0.05);
-            display: flex;
-            flex-direction: column;
-            max-height: calc(100vh - 20px);
-            overflow: hidden;
+            position: absolute; top: 10px; right: 10px; z-index: 1000; width: 300px;
+            background: var(--panel); border: 1px solid var(--panel-border); border-radius: 10px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.6); display: flex; flex-direction: column;
+            max-height: calc(100vh - 20px); overflow: hidden;
         }
         #panel.collapsed #panel-body { display: none; }
         #panel.collapsed { max-height: none; }
         #panel-header {
-            padding: 12px 14px;
-            border-bottom: 1px solid var(--panel-border);
-            display: flex; align-items: center; gap: 10px;
-            cursor: pointer; user-select: none; flex-shrink: 0;
+            padding: 12px 14px; border-bottom: 1px solid var(--panel-border);
+            display: flex; align-items: center; gap: 10px; cursor: pointer; user-select: none; flex-shrink: 0;
         }
-        #panel-header .logo {
-            width: 26px; height: 26px;
-            background: var(--accent); border-radius: 6px;
-            display: flex; align-items: center; justify-content: center; flex-shrink: 0;
-        }
+        #panel-header .logo { width: 26px; height: 26px; background: var(--accent); border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
         #panel-header .logo svg { display: block; }
         #panel-header .title-block { flex: 1; min-width: 0; }
-        #panel-header h1 {
-            font-family: var(--mono); font-size: 12px; font-weight: 600;
-            margin: 0; letter-spacing: 0.05em; color: var(--accent); text-transform: uppercase;
-        }
+        #panel-header h1 { font-family: var(--mono); font-size: 12px; font-weight: 600; margin: 0; letter-spacing: 0.05em; color: var(--accent); text-transform: uppercase; }
         #panel-header .subtitle { font-size: 10px; color: var(--text-muted); margin: 0; font-family: var(--mono); }
-        #toggle-btn {
-            background: none; border: none; color: var(--text-muted);
-            cursor: pointer; padding: 2px; display: flex; align-items: center; transition: color 0.2s;
-        }
+        #toggle-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 2px; display: flex; align-items: center; transition: color 0.2s; }
         #toggle-btn:hover { color: var(--accent); }
         #toggle-icon { transition: transform 0.25s ease; }
         #panel.collapsed #toggle-icon { transform: rotate(180deg); }
         #panel-body { display: flex; flex-direction: column; overflow: hidden; flex: 1; min-height: 0; }
-        #toolbar {
-            padding: 8px 10px; border-bottom: 1px solid var(--panel-border);
-            display: flex; flex-wrap: wrap; gap: 5px; flex-shrink: 0;
+
+        /* ── SYNC STATUS BAR ── */
+        #sync-bar {
+            padding: 5px 12px; border-bottom: 1px solid var(--panel-border);
+            display: flex; align-items: center; gap: 7px; flex-shrink: 0; min-height: 28px;
         }
-        .btn {
-            display: flex; align-items: center; gap: 5px;
-            padding: 6px 10px; border-radius: 6px;
-            font-family: var(--mono); font-size: 11px; font-weight: 500;
-            border: 1px solid transparent; cursor: pointer;
-            transition: all 0.15s; white-space: nowrap; -webkit-appearance: none;
+        #sync-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-muted); flex-shrink: 0; transition: background 0.3s; }
+        #sync-dot.ok      { background: var(--accent); }
+        #sync-dot.syncing { background: var(--warning, #fbbf24); animation: pulse 1s infinite; }
+        #sync-dot.error   { background: var(--danger); }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        #sync-label { font-family: var(--mono); font-size: 10px; color: var(--text-muted); flex: 1; }
+        #sync-setup-btn {
+            font-family: var(--mono); font-size: 10px; color: var(--accent);
+            background: none; border: 1px solid var(--accent-dim); border-radius: 4px;
+            padding: 2px 7px; cursor: pointer;
         }
+        #sync-setup-btn:hover { background: var(--accent-glow); }
+
+        /* ── TOOLBAR ── */
+        #toolbar { padding: 8px 10px; border-bottom: 1px solid var(--panel-border); display: flex; flex-wrap: wrap; gap: 5px; flex-shrink: 0; }
+        .btn { display: flex; align-items: center; gap: 5px; padding: 6px 10px; border-radius: 6px; font-family: var(--mono); font-size: 11px; font-weight: 500; border: 1px solid transparent; cursor: pointer; transition: all 0.15s; white-space: nowrap; -webkit-appearance: none; }
         .btn-primary { background: var(--accent-glow); border-color: var(--accent-dim); color: var(--accent); }
         .btn-primary:hover, .btn-primary:active { background: rgba(74,222,128,0.25); border-color: var(--accent); }
         .btn-road { background: rgba(96,165,250,0.1); border-color: rgba(96,165,250,0.4); color: var(--road); }
@@ -105,33 +76,20 @@
         .btn-danger { background: rgba(248,113,113,0.1); border-color: rgba(248,113,113,0.3); color: var(--danger); }
         .btn-danger:hover, .btn-danger:active { background: rgba(248,113,113,0.2); }
         .btn svg { flex-shrink: 0; }
-        #basemap-bar {
-            padding: 7px 10px; border-bottom: 1px solid var(--panel-border);
-            display: flex; gap: 4px; flex-shrink: 0;
-        }
-        .bm-btn {
-            flex: 1; padding: 5px 4px; border-radius: 5px;
-            font-family: var(--mono); font-size: 10px; font-weight: 500;
-            border: 1px solid var(--panel-border); background: transparent;
-            color: var(--text-muted); cursor: pointer; text-align: center;
-            transition: all 0.15s; -webkit-appearance: none;
-        }
+
+        /* ── BASEMAP BAR ── */
+        #basemap-bar { padding: 7px 10px; border-bottom: 1px solid var(--panel-border); display: flex; gap: 4px; flex-shrink: 0; }
+        .bm-btn { flex: 1; padding: 5px 4px; border-radius: 5px; font-family: var(--mono); font-size: 10px; font-weight: 500; border: 1px solid var(--panel-border); background: transparent; color: var(--text-muted); cursor: pointer; text-align: center; transition: all 0.15s; -webkit-appearance: none; }
         .bm-btn.active { background: var(--accent-glow); border-color: var(--accent-dim); color: var(--accent); }
         .bm-btn:hover:not(.active) { color: var(--text); border-color: #4a5a4c; }
+
+        /* ── SHAPES LIST ── */
         #shapes-section { flex: 1; overflow-y: auto; padding: 8px 10px; min-height: 0; }
         #shapes-section::-webkit-scrollbar { width: 4px; }
-        #shapes-section::-webkit-scrollbar-track { background: transparent; }
         #shapes-section::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 2px; }
-        .section-label {
-            font-family: var(--mono); font-size: 10px; font-weight: 600;
-            color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px;
-        }
+        .section-label { font-family: var(--mono); font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
         #shapes-list { display: flex; flex-direction: column; gap: 4px; }
-        .shape-item {
-            display: flex; align-items: center; gap: 8px; padding: 8px 10px;
-            background: rgba(255,255,255,0.02); border: 1px solid var(--panel-border);
-            border-radius: 7px; transition: border-color 0.15s; cursor: pointer;
-        }
+        .shape-item { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: rgba(255,255,255,0.02); border: 1px solid var(--panel-border); border-radius: 7px; transition: border-color 0.15s; cursor: pointer; }
         .shape-item:hover, .shape-item:active { border-color: #3a4e3c; }
         .shape-item.selected { border-color: var(--accent-dim); background: var(--accent-glow); }
         .shape-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
@@ -139,203 +97,94 @@
         .shape-name { font-size: 12px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
         .shape-meta { font-family: var(--mono); font-size: 10px; color: var(--text-muted); margin-top: 1px; }
         .shape-actions { display: flex; gap: 4px; }
-        .icon-btn {
-            width: 28px; height: 28px; border-radius: 5px;
-            border: 1px solid transparent; background: transparent;
-            color: var(--text-muted); cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            transition: all 0.15s; padding: 0;
-        }
+        .icon-btn { width: 28px; height: 28px; border-radius: 5px; border: 1px solid transparent; background: transparent; color: var(--text-muted); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s; padding: 0; }
         .icon-btn:hover, .icon-btn:active { border-color: var(--panel-border); color: var(--text); }
         .icon-btn.del:hover, .icon-btn.del:active { border-color: var(--danger); color: var(--danger); background: rgba(248,113,113,0.1); }
         .icon-btn.zoom:hover, .icon-btn.zoom:active { border-color: var(--accent-dim); color: var(--accent); background: var(--accent-glow); }
-        #empty-state {
-            text-align: center; padding: 24px 10px;
-            color: var(--text-muted); font-family: var(--mono); font-size: 11px; line-height: 1.7;
-        }
-        #stats-bar {
-            padding: 9px 10px; border-top: 1px solid var(--panel-border);
-            display: flex; gap: 8px; flex-shrink: 0;
-        }
+        #empty-state { text-align: center; padding: 24px 10px; color: var(--text-muted); font-family: var(--mono); font-size: 11px; line-height: 1.7; }
+
+        /* ── STATS BAR ── */
+        #stats-bar { padding: 9px 10px; border-top: 1px solid var(--panel-border); display: flex; gap: 8px; flex-shrink: 0; }
         .stat { flex: 1; text-align: center; }
         .stat-val { font-family: var(--mono); font-size: 14px; font-weight: 600; color: var(--accent); }
         .stat-label { font-size: 10px; color: var(--text-muted); margin-top: 1px; font-family: var(--mono); }
 
         /* ── MOBILE BOTTOM SHEET ── */
         @media (max-width: 599px) {
-            #panel {
-                position: fixed; top: auto; right: 0; left: 0; bottom: 0; width: 100%;
-                border-radius: 16px 16px 0 0;
-                max-height: var(--sheet-full);
-                height: var(--sheet-peek);
-                transition: height 0.35s cubic-bezier(0.4,0,0.2,1);
-                z-index: 1000; flex-shrink: 0;
-            }
+            #panel { position: fixed; top: auto; right: 0; left: 0; bottom: 0; width: 100%; border-radius: 16px 16px 0 0; max-height: var(--sheet-full); height: var(--sheet-peek); transition: height 0.35s cubic-bezier(0.4,0,0.2,1); z-index: 1000; flex-shrink: 0; }
             #panel.sheet-collapsed { height: var(--sheet-collapsed) !important; }
             #panel.sheet-open { height: var(--sheet-full); }
             #panel.dragging { transition: none; }
             #panel.sheet-collapsed #panel-body { opacity: 0; pointer-events: none; }
             #panel-body { opacity: 1; transition: opacity 0.2s; }
-            #panel-header::before {
-                content: ''; position: absolute; top: 8px; left: 50%;
-                transform: translateX(-50%); width: 36px; height: 4px;
-                background: var(--panel-border); border-radius: 2px;
-            }
+            #panel-header::before { content: ''; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 36px; height: 4px; background: var(--panel-border); border-radius: 2px; }
             #panel-header { position: relative; padding-top: 20px; cursor: grab; }
             #panel-header:active { cursor: grabbing; }
             #toggle-btn { display: none; }
-            #mobile-fab {
-                display: flex; flex-direction: column; gap: 8px;
-                position: fixed; right: 12px;
-                bottom: calc(var(--sheet-peek) + 12px);
-                z-index: 999;
-                transition: bottom 0.35s cubic-bezier(0.4,0,0.2,1);
-            }
-            .fab-btn {
-                width: 48px; height: 48px; border-radius: 50%; border: none;
-                cursor: pointer; display: flex; align-items: center; justify-content: center;
-                box-shadow: 0 4px 16px rgba(0,0,0,0.5);
-                transition: transform 0.15s, box-shadow 0.15s; -webkit-appearance: none;
-            }
+            #mobile-fab { display: flex; flex-direction: column; gap: 8px; position: fixed; right: 12px; bottom: calc(var(--sheet-peek) + 12px); z-index: 999; transition: bottom 0.35s cubic-bezier(0.4,0,0.2,1); }
+            .fab-btn { width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(0,0,0,0.5); transition: transform 0.15s; -webkit-appearance: none; }
             .fab-btn:active { transform: scale(0.92); }
             .fab-field { background: var(--accent); color: #0f1410; }
             .fab-road  { background: var(--road);   color: #0f1410; }
             .fab-locate { background: var(--panel); color: var(--text); border: 1px solid var(--panel-border); }
-            .leaflet-bottom.leaflet-left {
-                bottom: calc(var(--sheet-peek) + 8px) !important;
-                transition: bottom 0.35s cubic-bezier(0.4,0,0.2,1);
-            }
+            .leaflet-bottom.leaflet-left { bottom: calc(var(--sheet-peek) + 8px) !important; transition: bottom 0.35s cubic-bezier(0.4,0,0.2,1); }
             .leaflet-top.leaflet-left  { top: 10px; left: 10px; }
             .leaflet-top.leaflet-right { top: 10px; right: 10px; }
         }
         #mobile-fab { display: none; }
 
-        /* ── MOBILE DONE BAR ── */
+        /* ── DONE BAR ── */
         #draw-done-bar {
-            display: none;
-            position: fixed;
-            top: 16px; left: 50%;
-            transform: translateX(-50%);
-            z-index: 2000;
-            background: var(--panel);
-            border: 1px solid var(--panel-border);
-            border-radius: 40px;
-            padding: 6px 8px;
-            gap: 8px;
-            align-items: center;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.6);
-            white-space: nowrap;
+            display: none; position: fixed; top: 16px; left: 50%; transform: translateX(-50%);
+            z-index: 2000; background: var(--panel); border: 1px solid var(--panel-border);
+            border-radius: 40px; padding: 6px 8px; gap: 8px; align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.6); white-space: nowrap;
         }
         #draw-done-bar.visible { display: flex; }
-        #draw-hint {
-            font-family: var(--mono);
-            font-size: 11px;
-            color: var(--text-muted);
-            padding: 0 4px;
-        }
-        #draw-done-btn {
-            display: flex; align-items: center; gap: 5px;
-            padding: 7px 14px; border-radius: 30px;
-            background: var(--accent); color: #0f1410;
-            border: none; cursor: pointer;
-            font-family: var(--mono); font-size: 12px; font-weight: 600;
-        }
-        #draw-undo-btn {
-            display: flex; align-items: center; gap: 5px;
-            padding: 7px 12px; border-radius: 30px;
-            background: transparent; color: var(--text-muted);
-            border: 1px solid var(--panel-border); cursor: pointer;
-            font-family: var(--mono); font-size: 12px;
-        }
+        #draw-hint { font-family: var(--mono); font-size: 11px; color: var(--text-muted); padding: 0 4px; }
+        #draw-done-btn { display: flex; align-items: center; gap: 5px; padding: 7px 14px; border-radius: 30px; background: var(--accent); color: #0f1410; border: none; cursor: pointer; font-family: var(--mono); font-size: 12px; font-weight: 600; }
+        #draw-undo-btn { display: flex; align-items: center; gap: 5px; padding: 7px 12px; border-radius: 30px; background: transparent; color: var(--text-muted); border: 1px solid var(--panel-border); cursor: pointer; font-family: var(--mono); font-size: 12px; }
         #draw-undo-btn:active { color: var(--text); border-color: var(--text-muted); }
         #draw-done-btn:active { opacity: 0.85; }
-        #modal-overlay {
-            display: none; position: fixed; inset: 0;
-            z-index: 9999; background: rgba(0,0,0,0.75);
-            align-items: center; justify-content: center;
+
+        /* ── MODAL (shared for naming + GitHub setup) ── */
+        .modal-overlay { display: none; position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.75); align-items: center; justify-content: center; }
+        .modal-overlay.open { display: flex; }
+        .modal-box {
+            background: var(--panel); border: 1px solid var(--panel-border); border-radius: 12px;
+            padding: 20px; width: min(340px, calc(100vw - 32px)); box-shadow: 0 20px 60px rgba(0,0,0,0.8);
         }
-        #modal-overlay.open { display: flex; }
-        #modal {
-            background: var(--panel); border: 1px solid var(--panel-border);
-            border-radius: 12px; padding: 20px; width: min(320px, calc(100vw - 32px));
-            box-shadow: 0 20px 60px rgba(0,0,0,0.8);
+        .modal-box h3 { margin: 0 0 4px; font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--accent); }
+        .modal-box p  { margin: 0 0 14px; font-size: 12px; color: var(--text-muted); line-height: 1.5; }
+        .modal-box label { display: block; font-family: var(--mono); font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; margin-top: 10px; }
+        .modal-box label:first-of-type { margin-top: 0; }
+        .modal-box input {
+            width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--panel-border);
+            border-radius: 6px; color: var(--text); font-family: var(--mono); font-size: 13px;
+            outline: none; transition: border-color 0.15s; margin-bottom: 2px;
         }
-        #modal h3 { margin: 0 0 4px; font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--accent); }
-        #modal p  { margin: 0 0 14px; font-size: 12px; color: var(--text-muted); }
-        #modal input {
-            width: 100%; padding: 10px 12px;
-            background: var(--bg); border: 1px solid var(--panel-border);
-            border-radius: 6px; color: var(--text);
-            font-family: var(--mono); font-size: 14px;
-            outline: none; margin-bottom: 12px; transition: border-color 0.15s;
-        }
-        #modal input:focus { border-color: var(--accent-dim); }
-        #modal .modal-btns { display: flex; gap: 8px; justify-content: flex-end; }
+        .modal-box input:focus { border-color: var(--accent-dim); }
+        .modal-box .field-hint { font-family: var(--mono); font-size: 10px; color: var(--text-muted); margin-bottom: 10px; }
+        .modal-box .modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; }
+        .modal-box a { color: var(--accent); }
+
+        /* ── LOCATION DOT ── */
+        .loc-dot-wrapper { position: relative; width: 24px; height: 24px; }
+        .loc-pulse { position: absolute; inset: 0; border-radius: 50%; background: rgba(96,165,250,0.3); border: 1.5px solid rgba(96,165,250,0.55); animation: loc-ping 2s ease-out infinite; }
+        .loc-core { position: absolute; width: 14px; height: 14px; top: 5px; left: 5px; border-radius: 50%; background: #60a5fa; border: 2.5px solid #fff; box-shadow: 0 0 0 1px rgba(96,165,250,0.5), 0 2px 8px rgba(0,0,0,0.6); }
+        @keyframes loc-ping { 0%{transform:scale(1);opacity:.8} 70%{transform:scale(2.8);opacity:0} 100%{transform:scale(2.8);opacity:0} }
+        .fab-locate.tracking { background: #60a5fa !important; color: #0f1410 !important; box-shadow: 0 0 0 3px rgba(96,165,250,0.35), 0 4px 16px rgba(0,0,0,0.5) !important; }
+        #btn-locate-panel.tracking { border-color: var(--road) !important; color: var(--road) !important; background: rgba(96,165,250,0.1) !important; }
 
         /* ── TOAST ── */
-        #toast {
-            position: fixed; bottom: 90px; left: 50%;
-            transform: translateX(-50%) translateY(60px);
-            background: var(--panel); border: 1px solid var(--accent-dim);
-            color: var(--accent); font-family: var(--mono); font-size: 12px;
-            padding: 8px 16px; border-radius: 20px;
-            z-index: 9998; transition: transform 0.3s ease;
-            pointer-events: none; white-space: nowrap;
-        }
+        #toast { position: fixed; bottom: 90px; left: 50%; transform: translateX(-50%) translateY(60px); background: var(--panel); border: 1px solid var(--accent-dim); color: var(--accent); font-family: var(--mono); font-size: 12px; padding: 8px 16px; border-radius: 20px; z-index: 9998; transition: transform 0.3s ease; pointer-events: none; white-space: nowrap; }
         #toast.show { transform: translateX(-50%) translateY(0); }
 
-        /* ── LEAFLET OVERRIDES ── */
-        .leaflet-control-zoom a, .leaflet-draw-toolbar a {
-            background-color: var(--panel) !important; color: var(--accent) !important;
-            border-color: var(--panel-border) !important;
-            width: 32px !important; height: 32px !important; line-height: 32px !important;
-        }
+        /* ── LEAFLET ── */
+        .leaflet-control-zoom a, .leaflet-draw-toolbar a { background-color: var(--panel) !important; color: var(--accent) !important; border-color: var(--panel-border) !important; width: 32px !important; height: 32px !important; line-height: 32px !important; }
         .leaflet-control-zoom a:hover, .leaflet-draw-toolbar a:hover { background-color: var(--accent-glow) !important; }
         .leaflet-bar { border: 1px solid var(--panel-border) !important; box-shadow: 0 4px 16px rgba(0,0,0,0.4) !important; }
-        .leaflet-control-scale-line {
-            background: rgba(22,29,23,0.85) !important; border-color: var(--accent-dim) !important;
-            color: var(--text) !important; font-family: var(--mono) !important; font-size: 10px !important;
-        }
-
-        /* ── LOCATION DOT ──
-           iconSize 24x24, iconAnchor 12x12 — centres the div on the coordinate.
-           Children fill the box; pulse expands outward from centre via scale(). */
-        .loc-dot-wrapper {
-            position: relative;
-            width: 24px; height: 24px;
-        }
-        .loc-pulse {
-            position: absolute;
-            inset: 0;
-            border-radius: 50%;
-            background: rgba(96,165,250,0.3);
-            border: 1.5px solid rgba(96,165,250,0.55);
-            animation: loc-ping 2s ease-out infinite;
-        }
-        .loc-core {
-            position: absolute;
-            width: 14px; height: 14px;
-            top: 5px; left: 5px;
-            border-radius: 50%;
-            background: #60a5fa;
-            border: 2.5px solid #fff;
-            box-shadow: 0 0 0 1px rgba(96,165,250,0.5), 0 2px 8px rgba(0,0,0,0.6);
-        }
-        @keyframes loc-ping {
-            0%   { transform: scale(1);   opacity: 0.8; }
-            70%  { transform: scale(2.8); opacity: 0; }
-            100% { transform: scale(2.8); opacity: 0; }
-        }
-
-        /* Tracking active state for buttons */
-        .fab-locate.tracking {
-            background: #60a5fa !important; color: #0f1410 !important;
-            box-shadow: 0 0 0 3px rgba(96,165,250,0.35), 0 4px 16px rgba(0,0,0,0.5) !important;
-        }
-        #btn-locate-panel.tracking {
-            border-color: var(--road) !important; color: var(--road) !important;
-            background: rgba(96,165,250,0.1) !important;
-        }
+        .leaflet-control-scale-line { background: rgba(22,29,23,0.85) !important; border-color: var(--accent-dim) !important; color: var(--text) !important; font-family: var(--mono) !important; font-size: 10px !important; }
     </style>
 </head>
 <body>
@@ -351,9 +200,7 @@
         </svg>
     </button>
     <button class="fab-btn fab-road" onclick="startDraw('polyline')" title="Draw road">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M2 18L6 9L13 12L18 3"/>
-        </svg>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 18L6 9L13 12L18 3"/></svg>
     </button>
     <button class="fab-btn fab-field" onclick="startDraw('polygon')" title="Draw field">
         <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
@@ -374,15 +221,20 @@
         </div>
         <div class="title-block">
             <h1>Field Mapper</h1>
-            <p class="subtitle">Draw · Name · Export</p>
+            <p class="subtitle">Draw · Name · Sync</p>
         </div>
-        <button id="toggle-btn" onclick="event.stopPropagation();togglePanel()" title="Toggle panel">
-            <svg id="toggle-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8">
-                <polyline points="2,9 7,4 12,9"/>
-            </svg>
+        <button id="toggle-btn" onclick="event.stopPropagation();togglePanel()">
+            <svg id="toggle-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.8"><polyline points="2,9 7,4 12,9"/></svg>
         </button>
     </div>
     <div id="panel-body">
+        <!-- SYNC STATUS -->
+        <div id="sync-bar">
+            <div id="sync-dot"></div>
+            <span id="sync-label">Not connected to GitHub</span>
+            <button id="sync-setup-btn" onclick="openGithubSetup()">Setup</button>
+        </div>
+
         <div id="toolbar">
             <button class="btn btn-primary" onclick="startDraw('polygon')">
                 <svg width="11" height="11" viewBox="0 0 12 12" fill="currentColor"><path d="M6 0L11 3.5V8.5L6 12L1 8.5V3.5L6 0Z"/></svg>
@@ -409,17 +261,20 @@
                 Clear
             </button>
         </div>
+
         <div id="basemap-bar">
             <button class="bm-btn active" onclick="setBasemap('satellite',this)">Satellite</button>
             <button class="bm-btn" onclick="setBasemap('osm',this)">Street</button>
             <button class="bm-btn" onclick="setBasemap('terrain',this)">Terrain</button>
         </div>
+
         <div id="shapes-section">
             <div class="section-label">Layers</div>
             <div id="shapes-list">
                 <div id="empty-state">No shapes yet.<br>Draw a field or road<br>to get started.</div>
             </div>
         </div>
+
         <div id="stats-bar">
             <div class="stat"><div class="stat-val" id="stat-fields">0</div><div class="stat-label">Fields</div></div>
             <div class="stat"><div class="stat-val" id="stat-roads">0</div><div class="stat-label">Roads</div></div>
@@ -428,68 +283,239 @@
     </div>
 </div>
 
-<!-- NAME MODAL -->
-<div id="modal-overlay">
-    <div id="modal">
-        <h3 id="modal-title">Name this shape</h3>
-        <p id="modal-desc">Give it a descriptive name</p>
-        <input type="text" id="modal-input" placeholder="e.g. North Field" autocomplete="off" />
-        <div class="modal-btns">
-            <button class="btn btn-ghost" onclick="closeModal(false)">Cancel</button>
-            <button class="btn btn-primary" onclick="closeModal(true)">Save</button>
-        </div>
-    </div>
-</div>
-
-<!-- MOBILE DONE BUTTON (shown while drawing on mobile) -->
+<!-- DONE BAR -->
 <div id="draw-done-bar">
     <button id="draw-undo-btn" onclick="drawUndo()">
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8">
-            <path d="M3 7L1 5l2-2"/><path d="M1 5h8a4 4 0 0 1 0 8H5"/>
-        </svg>
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 7L1 5l2-2"/><path d="M1 5h8a4 4 0 0 1 0 8H5"/></svg>
         Undo
     </button>
     <span id="draw-hint">Tap to add points</span>
     <button id="draw-done-btn" onclick="drawDone()">
         Done
-        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
-            <polyline points="2,8 6,12 14,4"/>
-        </svg>
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><polyline points="2,8 6,12 14,4"/></svg>
     </button>
+</div>
+
+<!-- NAME MODAL -->
+<div id="name-modal" class="modal-overlay">
+    <div class="modal-box">
+        <h3 id="name-modal-title">Name this shape</h3>
+        <p id="name-modal-desc">Give it a descriptive name</p>
+        <input type="text" id="name-modal-input" placeholder="e.g. North Field" autocomplete="off" />
+        <div class="modal-btns">
+            <button class="btn btn-ghost" onclick="closeNameModal(false)">Cancel</button>
+            <button class="btn btn-primary" onclick="closeNameModal(true)">Save</button>
+        </div>
+    </div>
+</div>
+
+<!-- GITHUB SETUP MODAL -->
+<div id="github-modal" class="modal-overlay">
+    <div class="modal-box">
+        <h3>GitHub Sync Setup</h3>
+        <p>Shapes will be saved to a file in your repo and shared across all devices. Your token is stored only on this device.</p>
+        <label>GitHub Username</label>
+        <input type="text" id="gh-user" placeholder="e.g. DamMats02" autocomplete="off" />
+        <label>Repository Name</label>
+        <input type="text" id="gh-repo" placeholder="e.g. FieldTracking" autocomplete="off" />
+        <label>Personal Access Token <a href="https://github.com/settings/tokens/new?scopes=repo&description=FieldMapper" target="_blank">(create one)</a></label>
+        <input type="password" id="gh-token" placeholder="ghp_xxxxxxxxxxxx" autocomplete="off" />
+        <div class="field-hint">Token needs the <strong style="color:var(--text)">repo</strong> scope only.</div>
+        <div class="modal-btns">
+            <button class="btn btn-ghost" onclick="closeGithubSetup(false)">Cancel</button>
+            <button class="btn btn-danger" onclick="clearGithubSetup()" id="gh-clear-btn" style="display:none">Disconnect</button>
+            <button class="btn btn-primary" onclick="closeGithubSetup(true)">Connect</button>
+        </div>
+    </div>
 </div>
 
 <div id="toast"></div>
 <input type="file" id="file-input" accept=".geojson,.json" style="display:none" onchange="handleImport(event)">
 
 <script>
+// ═══════════════════════════════════════════
+// BASEMAPS & MAP
+// ═══════════════════════════════════════════
 const basemaps = {
-    satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 19 }),
-    osm:       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap contributors', maxZoom: 19 }),
-    terrain:   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { attribution: 'Tiles &copy; Esri', maxZoom: 19 })
+    satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution:'Tiles &copy; Esri', maxZoom:19 }),
+    osm:       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'&copy; OpenStreetMap contributors', maxZoom:19 }),
+    terrain:   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { attribution:'Tiles &copy; Esri', maxZoom:19 })
 };
 
-const map = L.map('map', { zoomControl: true }).setView([40.2934, 23.5428], 15);
+const map = L.map('map', { zoomControl:true }).setView([40.2934, 23.5428], 15);
 basemaps.satellite.addTo(map);
-L.control.scale({ imperial: false, metric: true, position: 'bottomleft' }).addTo(map);
+L.control.scale({ imperial:false, metric:true, position:'bottomleft' }).addTo(map);
 
 const drawnItems = new L.FeatureGroup();
 map.addLayer(drawnItems);
 
 const drawControl = new L.Control.Draw({
-    position: 'topleft',
+    position:'topleft',
     draw: {
-        polygon:  { shapeOptions: { color:'#4ade80', fillColor:'#4ade80', fillOpacity:0.2, weight:2 } },
-        polyline: { shapeOptions: { color:'#60a5fa', weight:3 } },
+        polygon:  { shapeOptions:{ color:'#4ade80', fillColor:'#4ade80', fillOpacity:0.2, weight:2 } },
+        polyline: { shapeOptions:{ color:'#60a5fa', weight:3 } },
         rectangle:false, circle:false, marker:false, circlemarker:false
     },
-    edit: { featureGroup: drawnItems }
+    edit:{ featureGroup:drawnItems }
 });
 map.addControl(drawControl);
 
-let shapes = [], shapeCounter = 0, modalResolve = null;
+// ═══════════════════════════════════════════
+// STATE
+// ═══════════════════════════════════════════
+let shapes = [], shapeCounter = 0, nameModalResolve = null;
 const isMobile = () => window.innerWidth < 600;
 
-// ── PANEL / SHEET ────────────────────────────────────────
+// ═══════════════════════════════════════════
+// GITHUB SYNC
+// ═══════════════════════════════════════════
+const GH_FILE = 'shapes.geojson'; // file stored in the repo root
+let ghConfig = null; // { user, repo, token }
+let ghFileSha = null; // needed for updates
+
+function loadGhConfig() {
+    try {
+        const raw = localStorage.getItem('fieldmapper_gh');
+        if (raw) ghConfig = JSON.parse(raw);
+    } catch(e) {}
+}
+
+function saveGhConfig(cfg) {
+    ghConfig = cfg;
+    localStorage.setItem('fieldmapper_gh', JSON.stringify(cfg));
+}
+
+function clearGithubSetup() {
+    localStorage.removeItem('fieldmapper_gh');
+    ghConfig = null; ghFileSha = null;
+    setSyncStatus('idle', 'Not connected to GitHub');
+    document.getElementById('github-modal').classList.remove('open');
+    showToast('GitHub disconnected');
+}
+
+function openGithubSetup() {
+    if (ghConfig) {
+        document.getElementById('gh-user').value  = ghConfig.user;
+        document.getElementById('gh-repo').value  = ghConfig.repo;
+        document.getElementById('gh-token').value = ghConfig.token;
+        document.getElementById('gh-clear-btn').style.display = '';
+    } else {
+        document.getElementById('gh-clear-btn').style.display = 'none';
+    }
+    document.getElementById('github-modal').classList.add('open');
+}
+
+async function closeGithubSetup(save) {
+    if (!save) { document.getElementById('github-modal').classList.remove('open'); return; }
+    const user  = document.getElementById('gh-user').value.trim();
+    const repo  = document.getElementById('gh-repo').value.trim();
+    const token = document.getElementById('gh-token').value.trim();
+    if (!user || !repo || !token) { showToast('⚠ Fill in all fields'); return; }
+    document.getElementById('github-modal').classList.remove('open');
+    saveGhConfig({ user, repo, token });
+    setSyncStatus('syncing', 'Connecting…');
+    await syncFromGitHub();
+}
+
+function setSyncStatus(state, label) {
+    const dot   = document.getElementById('sync-dot');
+    const lbl   = document.getElementById('sync-label');
+    const setup = document.getElementById('sync-setup-btn');
+    dot.className = '';
+    if (state === 'ok')      { dot.classList.add('ok');      setup.textContent = 'Edit'; }
+    else if (state === 'syncing') { dot.classList.add('syncing'); setup.textContent = 'Edit'; }
+    else if (state === 'error')   { dot.classList.add('error');   setup.textContent = 'Edit'; }
+    else { setup.textContent = 'Setup'; }
+    lbl.textContent = label;
+}
+
+// Build the GitHub API URL for the data file
+function ghApiUrl() {
+    return `https://api.github.com/repos/${ghConfig.user}/${ghConfig.repo}/contents/${GH_FILE}`;
+}
+
+function ghHeaders() {
+    return {
+        'Authorization': `token ${ghConfig.token}`,
+        'Accept': 'application/vnd.github.v3+json',
+        'Content-Type': 'application/json'
+    };
+}
+
+// Load shapes from GitHub, replace local state
+async function syncFromGitHub() {
+    if (!ghConfig) return;
+    setSyncStatus('syncing', 'Loading from GitHub…');
+    try {
+        const res = await fetch(ghApiUrl(), { headers: ghHeaders() });
+        if (res.status === 404) {
+            // File doesn't exist yet — that's fine, start fresh
+            ghFileSha = null;
+            setSyncStatus('ok', `Synced · ${ghConfig.user}/${ghConfig.repo}`);
+            showToast('✓ Connected — no data yet');
+            return;
+        }
+        if (!res.ok) throw new Error(`GitHub API ${res.status}`);
+        const data = await res.json();
+        ghFileSha = data.sha;
+        const decoded = atob(data.content.replace(/\n/g,''));
+        const gj = JSON.parse(decoded);
+        // Clear map and reload
+        drawnItems.clearLayers();
+        shapes = []; shapeCounter = 0;
+        ingestGeoJSON(gj);
+        setSyncStatus('ok', `Synced · ${ghConfig.user}/${ghConfig.repo}`);
+        showToast(`✓ Loaded ${shapes.length} shape(s) from GitHub`);
+    } catch(e) {
+        setSyncStatus('error', 'Sync failed');
+        showToast(`⚠ GitHub error: ${e.message}`);
+    }
+}
+
+// Push current shapes to GitHub
+async function pushToGitHub() {
+    if (!ghConfig) return;
+    setSyncStatus('syncing', 'Saving to GitHub…');
+    try {
+        const fc = buildFeatureCollection();
+        const content = btoa(unescape(encodeURIComponent(JSON.stringify(fc, null, 2))));
+        const body = {
+            message: `Update shapes ${new Date().toISOString().slice(0,16)}`,
+            content,
+            ...(ghFileSha ? { sha: ghFileSha } : {})
+        };
+        const res = await fetch(ghApiUrl(), {
+            method: 'PUT',
+            headers: ghHeaders(),
+            body: JSON.stringify(body)
+        });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.message || res.status);
+        }
+        const data = await res.json();
+        ghFileSha = data.content.sha;
+        setSyncStatus('ok', `Synced · ${ghConfig.user}/${ghConfig.repo}`);
+    } catch(e) {
+        setSyncStatus('error', 'Sync failed — saved locally');
+        showToast(`⚠ GitHub sync failed: ${e.message}`);
+    }
+}
+
+function buildFeatureCollection() {
+    return {
+        type: 'FeatureCollection',
+        features: shapes.map(s => {
+            const gj = s.layer.toGeoJSON();
+            gj.properties = { name:s.name, type:s.type };
+            return gj;
+        })
+    };
+}
+
+// ═══════════════════════════════════════════
+// PANEL / SHEET
+// ═══════════════════════════════════════════
 const panel = document.getElementById('panel');
 let sheetState = 'peek';
 
@@ -512,39 +538,36 @@ function setSheet(state) {
 function updateFabPosition() {
     const fab = document.getElementById('mobile-fab');
     if (!fab || !isMobile()) return;
-    const heights = { collapsed: 64, peek: 220, open: window.innerHeight * 0.75 };
-    fab.style.bottom = (heights[sheetState] + 12) + 'px';
+    const h = { collapsed:64, peek:220, open:window.innerHeight*0.75 };
+    fab.style.bottom = (h[sheetState] + 12) + 'px';
 }
 
 // Touch drag
-let dragStartY = 0, dragStartH = 0, isDragging = false;
+let dragStartY=0, dragStartH=0, isDragging=false;
 document.getElementById('panel-header').addEventListener('touchstart', e => {
     if (!isMobile()) return;
-    dragStartY = e.touches[0].clientY;
-    dragStartH = panel.getBoundingClientRect().height;
-    isDragging = true;
-    panel.classList.add('dragging');
-}, { passive: true });
+    dragStartY = e.touches[0].clientY; dragStartH = panel.getBoundingClientRect().height;
+    isDragging = true; panel.classList.add('dragging');
+}, { passive:true });
 window.addEventListener('touchmove', e => {
     if (!isDragging || !isMobile()) return;
-    const dy = dragStartY - e.touches[0].clientY;
-    const newH = Math.min(Math.max(dragStartH + dy, 64), window.innerHeight * 0.85);
+    const newH = Math.min(Math.max(dragStartH + dragStartY - e.touches[0].clientY, 64), window.innerHeight*0.85);
     panel.style.height = newH + 'px';
     const fab = document.getElementById('mobile-fab');
-    if (fab) fab.style.bottom = (newH + 12) + 'px';
-}, { passive: true });
+    if (fab) fab.style.bottom = (newH+12)+'px';
+}, { passive:true });
 window.addEventListener('touchend', () => {
     if (!isDragging || !isMobile()) return;
-    isDragging = false;
-    panel.classList.remove('dragging');
-    panel.style.height = '';
+    isDragging = false; panel.classList.remove('dragging'); panel.style.height = '';
     const h = panel.getBoundingClientRect().height;
     if (h < 100) setSheet('collapsed');
-    else if (h < window.innerHeight * 0.75 * 0.6) setSheet('peek');
+    else if (h < window.innerHeight*0.75*0.6) setSheet('peek');
     else setSheet('open');
 });
 
-// ── DRAW ─────────────────────────────────────────────────
+// ═══════════════════════════════════════════
+// DRAW EVENTS
+// ═══════════════════════════════════════════
 map.on(L.Draw.Event.CREATED, async function(e) {
     const type = e.layerType, layer = e.layer;
     const isField = type === 'polygon';
@@ -553,7 +576,7 @@ map.on(L.Draw.Event.CREATED, async function(e) {
         : `Road ${shapes.filter(s=>s.type==='polyline').length + 1}`;
     const name = await promptName(
         isField ? 'Name this field' : 'Name this road',
-        isField ? 'Give your field a descriptive name' : 'Give this road or path a name',
+        isField ? 'Give your field a descriptive name' : 'Give this road a name',
         defaultName
     );
     if (!name) return;
@@ -562,40 +585,88 @@ map.on(L.Draw.Event.CREATED, async function(e) {
     layer.setStyle && layer.setStyle({ color, fillColor:isField?color:undefined, fillOpacity:isField?0.2:undefined, weight:isField?2:3 });
     drawnItems.addLayer(layer);
     shapes.push({ id, name, type, layer, color });
-    renderShapeList(); updateStats(); saveToStorage();
+    renderShapeList(); updateStats();
+    saveToStorage();
+    await pushToGitHub();
     showToast(`✓ "${name}" saved`);
     if (isMobile() && sheetState !== 'open') setSheet('peek');
 });
-map.on(L.Draw.Event.DELETED, function(e) {
+map.on(L.Draw.Event.DELETED, async function(e) {
     e.layers.eachLayer(l => { shapes = shapes.filter(s=>s.layer!==l); });
-    renderShapeList(); updateStats(); saveToStorage();
+    renderShapeList(); updateStats(); saveToStorage(); await pushToGitHub();
 });
-map.on(L.Draw.Event.EDITED, function() { updateStats(); saveToStorage(); });
+map.on(L.Draw.Event.EDITED, async function() {
+    updateStats(); saveToStorage(); await pushToGitHub();
+});
 
-// ── MODAL ────────────────────────────────────────────────
+// ═══════════════════════════════════════════
+// DRAW ACTIONS (incl. mobile Done button)
+// ═══════════════════════════════════════════
+let _activeDrawer = null;
+
+function startDraw(type) {
+    if (isMobile()) {
+        setSheet('collapsed');
+        map.doubleClickZoom.disable();
+        showDrawBar(type);
+    }
+    const opts = { shapeOptions: type==='polygon'
+        ? { color:'#4ade80', fillColor:'#4ade80', fillOpacity:0.2, weight:2 }
+        : { color:'#60a5fa', weight:3 }
+    };
+    _activeDrawer = type==='polygon' ? new L.Draw.Polygon(map, opts) : new L.Draw.Polyline(map, opts);
+    _activeDrawer.enable();
+}
+
+function showDrawBar(type) {
+    document.getElementById('draw-hint').textContent = type==='polygon' ? 'Tap corners · Done to finish' : 'Tap points · Done to finish';
+    document.getElementById('draw-done-bar').classList.add('visible');
+}
+function hideDrawBar() {
+    document.getElementById('draw-done-bar').classList.remove('visible');
+    map.doubleClickZoom.enable();
+}
+function drawDone() {
+    if (_activeDrawer) {
+        try { _activeDrawer._finishShape(); } catch(e) {}
+        try { _activeDrawer.completeShape(); } catch(e) {}
+    }
+    hideDrawBar();
+}
+function drawUndo() {
+    if (_activeDrawer) { try { _activeDrawer.deleteLastVertex(); } catch(e) {} }
+}
+map.on(L.Draw.Event.CREATED, () => hideDrawBar());
+map.on(L.Draw.Event.DRAWSTOP, () => hideDrawBar());
+
+// ═══════════════════════════════════════════
+// NAME MODAL
+// ═══════════════════════════════════════════
 function promptName(title, desc, defaultVal) {
     return new Promise(resolve => {
-        document.getElementById('modal-title').textContent = title;
-        document.getElementById('modal-desc').textContent = desc;
-        const input = document.getElementById('modal-input');
+        document.getElementById('name-modal-title').textContent = title;
+        document.getElementById('name-modal-desc').textContent  = desc;
+        const input = document.getElementById('name-modal-input');
         input.value = defaultVal;
-        document.getElementById('modal-overlay').classList.add('open');
+        document.getElementById('name-modal').classList.add('open');
         setTimeout(() => { input.focus(); input.select(); }, 100);
-        modalResolve = resolve;
+        nameModalResolve = resolve;
     });
 }
-function closeModal(save) {
-    const input = document.getElementById('modal-input');
+function closeNameModal(save) {
+    const input = document.getElementById('name-modal-input');
     const val = save ? (input.value.trim() || input.placeholder) : null;
-    document.getElementById('modal-overlay').classList.remove('open');
-    if (modalResolve) { modalResolve(val); modalResolve = null; }
+    document.getElementById('name-modal').classList.remove('open');
+    if (nameModalResolve) { nameModalResolve(val); nameModalResolve = null; }
 }
-document.getElementById('modal-input').addEventListener('keydown', e => {
-    if (e.key === 'Enter') closeModal(true);
-    if (e.key === 'Escape') closeModal(false);
+document.getElementById('name-modal-input').addEventListener('keydown', e => {
+    if (e.key==='Enter') closeNameModal(true);
+    if (e.key==='Escape') closeNameModal(false);
 });
 
-// ── SHAPE LIST ───────────────────────────────────────────
+// ═══════════════════════════════════════════
+// SHAPE LIST
+// ═══════════════════════════════════════════
 function renderShapeList() {
     const list = document.getElementById('shapes-list');
     if (!shapes.length) {
@@ -622,58 +693,9 @@ function renderShapeList() {
     }).join('');
 }
 
-// ── ACTIONS ──────────────────────────────────────────────
-let _activeDrawer = null;
-
-function startDraw(type) {
-    if (isMobile()) {
-        setSheet('collapsed');
-        // Disable doubleClickZoom — on mobile Leaflet converts a tap into
-        // both a click AND a dblclick (300ms timer), which makes Leaflet.draw
-        // finish the shape after the 2nd point. Disabling it stops that.
-        map.doubleClickZoom.disable();
-        showDrawBar(type);
-    }
-    const opts = { shapeOptions: type === 'polygon'
-        ? { color:'#4ade80', fillColor:'#4ade80', fillOpacity:0.2, weight:2 }
-        : { color:'#60a5fa', weight:3 }
-    };
-    _activeDrawer = type === 'polygon'
-        ? new L.Draw.Polygon(map, opts)
-        : new L.Draw.Polyline(map, opts);
-    _activeDrawer.enable();
-}
-
-function showDrawBar(type) {
-    const bar = document.getElementById('draw-done-bar');
-    const hint = document.getElementById('draw-hint');
-    hint.textContent = type === 'polygon' ? 'Tap corners · Done to finish' : 'Tap points · Done to finish';
-    bar.classList.add('visible');
-}
-
-function hideDrawBar() {
-    document.getElementById('draw-done-bar').classList.remove('visible');
-    map.doubleClickZoom.enable();
-}
-
-function drawDone() {
-    // Simulate the "finish" action Leaflet.draw exposes
-    if (_activeDrawer) {
-        try { _activeDrawer._finishShape(); } catch(e) {}
-        try { _activeDrawer.completeShape(); } catch(e) {}
-    }
-    hideDrawBar();
-}
-
-function drawUndo() {
-    if (_activeDrawer) {
-        try { _activeDrawer.deleteLastVertex(); } catch(e) {}
-    }
-}
-
-// Hide bar when drawing is cancelled or completed
-map.on(L.Draw.Event.CREATED, () => hideDrawBar());
-map.on(L.Draw.Event.DRAWSTOP,  () => hideDrawBar());
+// ═══════════════════════════════════════════
+// OTHER ACTIONS
+// ═══════════════════════════════════════════
 function zoomTo(id) {
     const s = shapes.find(x=>x.id===id); if (!s) return;
     map.fitBounds(s.layer.getBounds(), { padding:[40,40] });
@@ -681,126 +703,83 @@ function zoomTo(id) {
     document.getElementById(`item-${id}`)?.classList.add('selected');
     if (isMobile()) setSheet('peek');
 }
-function deleteShape(id) {
+async function deleteShape(id) {
     const idx = shapes.findIndex(x=>x.id===id); if (idx===-1) return;
-    drawnItems.removeLayer(shapes[idx].layer);
-    shapes.splice(idx,1);
-    renderShapeList(); updateStats(); saveToStorage();
+    drawnItems.removeLayer(shapes[idx].layer); shapes.splice(idx,1);
+    renderShapeList(); updateStats(); saveToStorage(); await pushToGitHub();
     showToast('Shape deleted');
 }
-function clearAll() {
+async function clearAll() {
     if (!shapes.length) return;
     if (!confirm(`Delete all ${shapes.length} shape(s)?`)) return;
     drawnItems.clearLayers(); shapes = [];
-    renderShapeList(); updateStats(); saveToStorage();
+    renderShapeList(); updateStats(); saveToStorage(); await pushToGitHub();
     showToast('All shapes cleared');
 }
 
-// ── LOCATION TRACKING ────────────────────────────────────
-// Three bugs fixed vs the original:
-//   1. iconSize/iconAnchor were [0,0] — dot was placed at wrong position
-//   2. visibilitychange stopped the watch when the permission dialog appeared
-//   3. accuracy circle used className instead of path options — never rendered
+// ═══════════════════════════════════════════
+// LOCATION TRACKING
+// ═══════════════════════════════════════════
+let tracking=false, locationMarker=null, accuracyCircle=null, watchId=null, firstFix=true;
 
-let tracking = false, locationMarker = null, accuracyCircle = null, watchId = null, firstFix = true;
-
-function toggleTracking() {
-    if (tracking) stopTracking(); else startTracking();
-}
-
+function toggleTracking() { if (tracking) stopTracking(); else startTracking(); }
 function startTracking() {
     if (!navigator.geolocation) { showToast('⚠ Geolocation not supported'); return; }
-    tracking = true; firstFix = true;
-    setTrackingUI(true);
+    tracking=true; firstFix=true; setTrackingUI(true);
     if (isMobile()) setSheet('collapsed');
     showToast('Locating…');
-    watchId = navigator.geolocation.watchPosition(
-        onLocationUpdate,
-        onLocationError,
-        { enableHighAccuracy: true, maximumAge: 3000, timeout: 20000 }
-    );
+    watchId = navigator.geolocation.watchPosition(onLocationUpdate, onLocationError, { enableHighAccuracy:true, maximumAge:3000, timeout:20000 });
 }
-
 function stopTracking() {
-    tracking = false;
-    if (watchId !== null) { navigator.geolocation.clearWatch(watchId); watchId = null; }
-    if (locationMarker)  { map.removeLayer(locationMarker);  locationMarker = null; }
-    if (accuracyCircle)  { map.removeLayer(accuracyCircle);  accuracyCircle = null; }
-    setTrackingUI(false);
-    showToast('Tracking stopped');
+    tracking=false;
+    if (watchId!==null) { navigator.geolocation.clearWatch(watchId); watchId=null; }
+    if (locationMarker) { map.removeLayer(locationMarker); locationMarker=null; }
+    if (accuracyCircle) { map.removeLayer(accuracyCircle); accuracyCircle=null; }
+    setTrackingUI(false); showToast('Tracking stopped');
 }
-
 function setTrackingUI(on) {
     document.getElementById('fab-locate')?.classList.toggle('tracking', on);
     document.getElementById('btn-locate-panel')?.classList.toggle('tracking', on);
 }
-
 function onLocationUpdate(pos) {
-    const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+    const { latitude:lat, longitude:lng, accuracy } = pos.coords;
     const latlng = L.latLng(lat, lng);
-
-    // Dot — iconSize 24x24, iconAnchor 12x12 centres it on the coordinate
     if (!locationMarker) {
-        const icon = L.divIcon({
-            className: '',
-            html: '<div class="loc-dot-wrapper"><div class="loc-pulse"></div><div class="loc-core"></div></div>',
-            iconSize:   [24, 24],
-            iconAnchor: [12, 12]
-        });
-        locationMarker = L.marker(latlng, { icon, zIndexOffset: 900, interactive: false, keyboard: false });
-        locationMarker.addTo(map);
-    } else {
-        locationMarker.setLatLng(latlng);
-    }
-
-    // Accuracy circle — path options, NOT className
+        const icon = L.divIcon({ className:'', html:'<div class="loc-dot-wrapper"><div class="loc-pulse"></div><div class="loc-core"></div></div>', iconSize:[24,24], iconAnchor:[12,12] });
+        locationMarker = L.marker(latlng, { icon, zIndexOffset:900, interactive:false, keyboard:false }).addTo(map);
+    } else { locationMarker.setLatLng(latlng); }
     if (!accuracyCircle) {
-        accuracyCircle = L.circle(latlng, {
-            radius: accuracy, interactive: false,
-            stroke: true,  color: '#60a5fa', weight: 1, opacity: 0.5,
-            fill:   true,  fillColor: '#60a5fa', fillOpacity: 0.07
-        }).addTo(map);
+        accuracyCircle = L.circle(latlng, { radius:accuracy, interactive:false, stroke:true, color:'#60a5fa', weight:1, opacity:0.5, fill:true, fillColor:'#60a5fa', fillOpacity:0.07 }).addTo(map);
         accuracyCircle.bringToBack();
-    } else {
-        accuracyCircle.setLatLng(latlng);
-        accuracyCircle.setRadius(accuracy);
-    }
-
-    // Pan only on first fix
+    } else { accuracyCircle.setLatLng(latlng); accuracyCircle.setRadius(accuracy); }
     if (firstFix) {
-        map.setView(latlng, Math.max(map.getZoom(), 17));
-        firstFix = false;
-        const acc = accuracy < 1000 ? `${Math.round(accuracy)} m` : `${(accuracy/1000).toFixed(1)} km`;
-        showToast(`✓ Located · ±${acc}`);
+        map.setView(latlng, Math.max(map.getZoom(), 17)); firstFix=false;
+        showToast(`✓ Located · ±${accuracy<1000?Math.round(accuracy)+' m':(accuracy/1000).toFixed(1)+' km'}`);
     }
 }
-
 function onLocationError(err) {
-    // Timeout (code 3): keep watching, just warn
-    if (err.code === 3) { showToast('⚠ GPS signal weak, retrying…'); return; }
+    if (err.code===3) { showToast('⚠ GPS signal weak, retrying…'); return; }
     stopTracking();
-    showToast(err.code === 1 ? '⚠ Location permission denied' : '⚠ Position unavailable');
+    showToast(err.code===1 ? '⚠ Location permission denied' : '⚠ Position unavailable');
 }
 
-// ── BASEMAP ──────────────────────────────────────────────
+// ═══════════════════════════════════════════
+// BASEMAP
+// ═══════════════════════════════════════════
 let currentBasemap = 'satellite';
 function setBasemap(name, btn) {
-    if (name === currentBasemap) return;
-    map.removeLayer(basemaps[currentBasemap]);
-    basemaps[name].addTo(map);
-    drawnItems.bringToFront();
+    if (name===currentBasemap) return;
+    map.removeLayer(basemaps[currentBasemap]); basemaps[name].addTo(map); drawnItems.bringToFront();
     currentBasemap = name;
-    document.querySelectorAll('.bm-btn').forEach(b=>b.classList.remove('active'));
-    btn.classList.add('active');
+    document.querySelectorAll('.bm-btn').forEach(b=>b.classList.remove('active')); btn.classList.add('active');
 }
 
-// ── EXPORT / IMPORT ──────────────────────────────────────
+// ═══════════════════════════════════════════
+// EXPORT / IMPORT
+// ═══════════════════════════════════════════
 function exportGeoJSON() {
     if (!shapes.length) { showToast('Nothing to export'); return; }
-    const fc = { type:'FeatureCollection', features: shapes.map(s => {
-        const gj = s.layer.toGeoJSON(); gj.properties = { name:s.name, type:s.type }; return gj;
-    })};
-    const url = URL.createObjectURL(new Blob([JSON.stringify(fc,null,2)], { type:'application/json' }));
+    const url = URL.createObjectURL(new Blob([JSON.stringify(buildFeatureCollection(),null,2)], { type:'application/json' }));
     Object.assign(document.createElement('a'), { href:url, download:`field-map-${new Date().toISOString().slice(0,10)}.geojson` }).click();
     URL.revokeObjectURL(url);
     showToast(`✓ Exported ${shapes.length} shape(s)`);
@@ -809,86 +788,99 @@ function importFile() { document.getElementById('file-input').click(); }
 function handleImport(event) {
     const file = event.target.files[0]; if (!file) return;
     const reader = new FileReader();
-    reader.onload = e => { try { loadGeoJSON(JSON.parse(e.target.result)); showToast('✓ Imported'); } catch { showToast('⚠ Invalid GeoJSON'); } };
-    reader.readAsText(file); event.target.value = '';
+    reader.onload = async e => {
+        try { ingestGeoJSON(JSON.parse(e.target.result)); saveToStorage(); await pushToGitHub(); showToast('✓ Imported'); }
+        catch { showToast('⚠ Invalid GeoJSON'); }
+    };
+    reader.readAsText(file); event.target.value='';
 }
-function loadGeoJSON(gj) {
+
+// Shared ingest — used by import AND GitHub load
+function ingestGeoJSON(gj) {
     (gj.type==='FeatureCollection' ? gj.features : [gj]).forEach(f => {
         const layer = L.geoJSON(f).getLayers()[0]; if (!layer) return;
-        const type = f.geometry.type==='Polygon' ? 'polygon' : 'polyline';
-        const name = f.properties?.name || (type==='polygon' ? `Field ${++shapeCounter}` : `Road ${++shapeCounter}`);
+        const type  = f.geometry.type==='Polygon' ? 'polygon' : 'polyline';
+        const name  = f.properties?.name || (type==='polygon' ? `Field ${++shapeCounter}` : `Road ${++shapeCounter}`);
         const color = type==='polygon' ? '#4ade80' : '#60a5fa';
         layer.setStyle && layer.setStyle({ color, fillColor:type==='polygon'?color:undefined, fillOpacity:type==='polygon'?0.2:undefined, weight:type==='polygon'?2:3 });
         drawnItems.addLayer(layer);
         shapes.push({ id:++shapeCounter, name, type, layer, color });
     });
-    renderShapeList(); updateStats(); saveToStorage();
-    if (shapes.length) map.fitBounds(drawnItems.getBounds(), { padding:[30,30] });
+    renderShapeList(); updateStats();
+    if (shapes.length) setTimeout(()=>map.fitBounds(drawnItems.getBounds(),{padding:[30,30]}),100);
 }
 
-// ── STATS ────────────────────────────────────────────────
+// ═══════════════════════════════════════════
+// STATS
+// ═══════════════════════════════════════════
 function updateStats() {
-    const fields = shapes.filter(s=>s.type==='polygon');
-    const roads  = shapes.filter(s=>s.type==='polyline');
-    let totalArea = 0; fields.forEach(s => { totalArea += getAreaM2(s.layer); });
+    const fields=shapes.filter(s=>s.type==='polygon'), roads=shapes.filter(s=>s.type==='polyline');
+    let area=0; fields.forEach(s=>{area+=getAreaM2(s.layer);});
     document.getElementById('stat-fields').textContent = fields.length;
     document.getElementById('stat-roads').textContent  = roads.length;
-    document.getElementById('stat-area').textContent   = formatArea(totalArea);
+    document.getElementById('stat-area').textContent   = formatArea(area);
 }
 function getAreaM2(layer) { try { return Math.abs(sphericalPolygonArea(layer.getLatLngs()[0])); } catch { return 0; } }
 function sphericalPolygonArea(ll) {
-    const R=6371000, r=d=>d*Math.PI/180; let a=0, n=ll.length;
-    for (let i=0;i<n;i++) { const j=(i+1)%n; a+=r(ll[j].lng-ll[i].lng)*(2+Math.sin(r(ll[i].lat))+Math.sin(r(ll[j].lat))); }
-    return Math.abs(a*R*R/2);
+    const R=6371000, r=d=>d*Math.PI/180; let a=0,n=ll.length;
+    for(let i=0;i<n;i++){const j=(i+1)%n; a+=r(ll[j].lng-ll[i].lng)*(2+Math.sin(r(ll[i].lat))+Math.sin(r(ll[j].lat)));} return Math.abs(a*R*R/2);
 }
-function formatArea(m2) { return m2<10000 ? `${Math.round(m2)} m²` : `${(m2/10000).toFixed(1)} ha`; }
-function getAreaStr(layer)   { try { return formatArea(getAreaM2(layer)); } catch { return '—'; } }
+function formatArea(m2) { return m2<10000?`${Math.round(m2)} m²`:`${(m2/10000).toFixed(1)} ha`; }
+function getAreaStr(layer)   { try{return formatArea(getAreaM2(layer));}catch{return'—';} }
 function getLengthStr(layer) {
-    try {
-        const ll=layer.getLatLngs(); let len=0;
-        for (let i=0;i<ll.length-1;i++) len+=ll[i].distanceTo(ll[i+1]);
-        return len>=1000 ? `${(len/1000).toFixed(2)} km` : `${Math.round(len)} m`;
-    } catch { return '—'; }
+    try { const ll=layer.getLatLngs(); let len=0; for(let i=0;i<ll.length-1;i++) len+=ll[i].distanceTo(ll[i+1]); return len>=1000?`${(len/1000).toFixed(2)} km`:`${Math.round(len)} m`; } catch { return'—'; }
 }
 
-// ── STORAGE ──────────────────────────────────────────────
+// ═══════════════════════════════════════════
+// LOCAL STORAGE (fallback)
+// ═══════════════════════════════════════════
 function saveToStorage() {
     try {
-        localStorage.setItem('fieldmapper_shapes', JSON.stringify(shapes.map(s=>({ id:s.id,name:s.name,type:s.type,color:s.color,geojson:s.layer.toGeoJSON() }))));
+        localStorage.setItem('fieldmapper_shapes', JSON.stringify(shapes.map(s=>({id:s.id,name:s.name,type:s.type,color:s.color,geojson:s.layer.toGeoJSON()}))));
         localStorage.setItem('fieldmapper_counter', shapeCounter);
-    } catch(e) { console.warn('Save failed',e); }
+    } catch(e) { console.warn('Local save failed',e); }
 }
 function loadFromStorage() {
     try {
-        const cnt = localStorage.getItem('fieldmapper_counter'); if (cnt) shapeCounter = parseInt(cnt);
-        const raw = localStorage.getItem('fieldmapper_shapes'); if (!raw) return;
-        JSON.parse(raw).forEach(d => {
-            const layer = L.geoJSON(d.geojson).getLayers()[0]; if (!layer) return;
-            layer.setStyle && layer.setStyle({ color:d.color, fillColor:d.type==='polygon'?d.color:undefined, fillOpacity:d.type==='polygon'?0.2:undefined, weight:d.type==='polygon'?2:3 });
-            drawnItems.addLayer(layer);
-            shapes.push({ id:d.id,name:d.name,type:d.type,layer,color:d.color });
+        const cnt=localStorage.getItem('fieldmapper_counter'); if(cnt) shapeCounter=parseInt(cnt);
+        const raw=localStorage.getItem('fieldmapper_shapes'); if(!raw) return;
+        JSON.parse(raw).forEach(d=>{
+            const layer=L.geoJSON(d.geojson).getLayers()[0]; if(!layer) return;
+            layer.setStyle&&layer.setStyle({color:d.color,fillColor:d.type==='polygon'?d.color:undefined,fillOpacity:d.type==='polygon'?0.2:undefined,weight:d.type==='polygon'?2:3});
+            drawnItems.addLayer(layer); shapes.push({id:d.id,name:d.name,type:d.type,layer,color:d.color});
         });
-        if (shapes.length) { renderShapeList(); updateStats(); setTimeout(()=>map.fitBounds(drawnItems.getBounds(),{padding:[30,30]}),100); }
-    } catch(e) { console.warn('Load failed',e); }
+        if(shapes.length){renderShapeList();updateStats();setTimeout(()=>map.fitBounds(drawnItems.getBounds(),{padding:[30,30]}),100);}
+    } catch(e) { console.warn('Local load failed',e); }
 }
 
-// ── UTILS ─────────────────────────────────────────────────
-function escHtml(s) { return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+// ═══════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════
+function escHtml(s){return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function showToast(msg) {
-    const t = document.getElementById('toast');
-    t.textContent = msg; t.classList.add('show');
-    clearTimeout(t._timer); t._timer = setTimeout(()=>t.classList.remove('show'), 2500);
+    const t=document.getElementById('toast'); t.textContent=msg; t.classList.add('show');
+    clearTimeout(t._timer); t._timer=setTimeout(()=>t.classList.remove('show'),2800);
 }
-window.addEventListener('resize', () => {
-    if (isMobile()) updateFabPosition();
-    else { panel.classList.remove('sheet-collapsed','sheet-open'); panel.style.height=''; }
-});
+window.addEventListener('resize',()=>{ if(isMobile()) updateFabPosition(); else{panel.classList.remove('sheet-collapsed','sheet-open');panel.style.height='';} });
 
-// ── INIT ──────────────────────────────────────────────────
-loadFromStorage();
-renderShapeList();
-updateStats();
-if (isMobile()) setSheet('peek');
+// ═══════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════
+async function init() {
+    loadGhConfig();
+    if (ghConfig) {
+        setSyncStatus('syncing', 'Loading from GitHub…');
+        await syncFromGitHub();
+    } else {
+        loadFromStorage();
+        renderShapeList();
+        updateStats();
+        setSyncStatus('idle', 'Not connected to GitHub');
+    }
+    if (isMobile()) setSheet('peek');
+}
+
+init();
 </script>
 </body>
 </html>
