@@ -598,6 +598,36 @@
           ]
         ]
       }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "GeotrhshVraston",
+        "type": "polygon"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              23.574294,
+              40.319113
+            ],
+            [
+              23.574246,
+              40.319224
+            ],
+            [
+              23.574348,
+              40.319134
+            ],
+            [
+              23.574294,
+              40.319113
+            ]
+          ]
+        ]
+      }
     }
   ]
 }
