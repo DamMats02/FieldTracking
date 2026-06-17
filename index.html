@@ -264,6 +264,7 @@
 
         <div id="basemap-bar">
             <button class="bm-btn active" onclick="setBasemap('satellite',this)">Satellite</button>
+            <button class="bm-btn" onclick="setBasemap('hybrid',this)">Hybrid</button>
             <button class="bm-btn" onclick="setBasemap('osm',this)">Street</button>
             <button class="bm-btn" onclick="setBasemap('terrain',this)">Terrain</button>
         </div>
@@ -337,9 +338,26 @@
 // BASEMAPS & MAP
 // ═══════════════════════════════════════════
 const basemaps = {
-    satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution:'Tiles &copy; Esri', maxZoom:19 }),
-    osm:       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution:'&copy; OpenStreetMap contributors', maxZoom:19 }),
-    terrain:   L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { attribution:'Tiles &copy; Esri', maxZoom:19 })
+    satellite: L.tileLayer('https://mt{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+        attribution: '&copy; Google Maps',
+        subdomains: ['0','1','2','3'],
+        maxZoom: 21,
+        maxNativeZoom: 21
+    }),
+    hybrid: L.tileLayer('https://mt{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+        attribution: '&copy; Google Maps',
+        subdomains: ['0','1','2','3'],
+        maxZoom: 21,
+        maxNativeZoom: 21
+    }),
+    osm: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+        maxZoom: 19
+    }),
+    terrain: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri',
+        maxZoom: 19
+    })
 };
 
 const map = L.map('map', { zoomControl:true }).setView([40.2934, 23.5428], 15);
