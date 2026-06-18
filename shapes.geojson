@@ -1168,6 +1168,36 @@
           ]
         ]
       }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "PlanaTrigonoPotami",
+        "type": "polygon"
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [
+              23.671208,
+              40.367036
+            ],
+            [
+              23.671353,
+              40.366305
+            ],
+            [
+              23.672243,
+              40.366476
+            ],
+            [
+              23.671208,
+              40.367036
+            ]
+          ]
+        ]
+      }
     }
   ]
 }
